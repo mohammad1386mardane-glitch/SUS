@@ -21,6 +21,7 @@ class ModelMetadata(BaseModel):
     suspicious_rows: int = Field(ge=1)
     random_state: int
     contamination: float = Field(gt=0, le=0.5)
+    calibration_scale: float = Field(gt=0)
 
     @field_validator("created_at")
     @classmethod
@@ -63,6 +64,7 @@ class ModelRegistry:
         suspicious_rows: int,
         random_state: int,
         contamination: float,
+        calibration_scale: float,
         feature_names: tuple[str, ...] = FEATURE_NAMES,
     ) -> RegisteredModel:
         latest = self.latest()
@@ -81,6 +83,7 @@ class ModelRegistry:
             suspicious_rows=suspicious_rows,
             random_state=random_state,
             contamination=contamination,
+            calibration_scale=calibration_scale,
         )
         manifest = _RegistryManifest(version=version, artifact=artifact_path.name)
 

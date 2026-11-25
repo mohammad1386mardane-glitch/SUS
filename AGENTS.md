@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 5 — Machine Learning Model
 - **Latest tag:** `v0.4.0`
-- **Current step:** 5.4 — add inference service
+- **Current step:** 5.5 — blend rules and ML score
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -35,6 +35,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/rules/` — typed rule context, abstract rule base, and rule registry
 - `app/scoring.py` — capped weighted scoring and configurable decision thresholds
 - `app/model_registry.py` — versioned model artifacts, validated metadata, and latest manifest
+- `app/ml_inference.py` — registered Isolation Forest loading and bounded anomaly scoring
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
@@ -84,6 +85,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Train Isolation Forest on only labeled normal rows, using seed 42, 100 estimators, and 5% contamination by default. | Isolation Forest is unsupervised; suspicious labels remain available for evaluation, while deterministic defaults make local retraining repeatable. |
 | 2026-11-25 | Keep synthetic normal examples below every configured rule threshold, and ensure the distinct-user count includes at least the current user. | This keeps synthetic labels aligned with rule behavior and mirrors the API's observed per-IP count semantics. |
 | 2026-11-25 | Store each trained model as an immutable versioned artifact with versioned metadata and update a stable JSON manifest last. | Consumers can resolve the current version through `MODEL_PATH` without overwriting prior model files; writing the manifest last avoids advertising incomplete artifacts. |
+| 2026-11-25 | Map Isolation Forest decision margins to a bounded 0–100 anomaly score using a logistic transform calibrated to the median normal training margin. | A decision margin of zero maps to 50, while the median training-normal margin maps to 5; the output is a risk score, not a probability. |
 
 ## Work Log
 
@@ -136,6 +138,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(ml): add synthetic data generator` | Added deterministic labeled synthetic login-feature data, a CLI generator, and tests. | `app/ml_features.py`, `app/ml_data.py`, `scripts/generate_synthetic_data.py`, `tests/test_ml_data.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_ml_data.py -q`: 4 passed; Ruff, mypy, pre-commit, and CLI output validation passed | CSV contains normalized, numeric model features and labels only; generation uses a local seeded RNG and no external user data. |
 | 2026-11-25 | Copilot SDK | `feat(ml): add training script (IsolationForest)` | Added validated synthetic CSV loading and reproducible normal-only Isolation Forest training; tightened generated labels to match rule boundaries. | `app/ml_training.py`, `scripts/train.py`, `tests/test_ml_training.py`, `app/ml_data.py`, `tests/test_ml_data.py`, `pyproject.toml`, `README.md`, `AGENTS.md`, `PLAN.md` | Focused tests: 8 passed; Ruff, mypy, pre-commit, dependency install, pip check, and generation/training CLI passed | Model training defaults to seed 42, 100 estimators, and 5% contamination; output honors `MODEL_PATH`. |
 | 2026-11-25 | Copilot SDK | `feat(ml): add model registry (versioned artifacts)` | Added versioned model files, validated metadata, latest-model manifest, and registry-backed training output. | `app/model_registry.py`, `app/ml_training.py`, `scripts/train.py`, `tests/test_model_registry.py`, `tests/test_ml_training.py`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | 11 focused tests passed; Ruff, mypy, pre-commit, and end-to-end generation/training/registry checks passed | `MODEL_PATH` is now the stable base path; numbered artifact and metadata files are retained, and `model.json` selects the latest version. |
+| 2026-11-25 | Copilot SDK | `feat(ml): add inference service` | Added validated latest-model loading, feature-schema checks, and calibrated bounded anomaly scoring. | `app/ml_inference.py`, `app/ml_training.py`, `app/model_registry.py`, `tests/test_ml_inference.py`, `tests/test_ml_training.py`, `tests/test_model_registry.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 14 focused tests passed; Ruff, mypy, and pre-commit passed; normal and anomalous inference paths exercised | The service is standalone; the API remains rule-only until score blending in step 5.5. |
 
 ## Open Questions
 

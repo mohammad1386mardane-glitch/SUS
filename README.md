@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 4 rule-engine MVP is complete. Phase 5 is underway: a reproducible synthetic login-feature generator is available; model training, inference, and evaluation are being added. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 4 rule-engine MVP is complete. Phase 5 is underway: synthetic data generation, Isolation Forest training, a versioned registry, and standalone inference are implemented. API score blending and model evaluation are next. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -24,11 +24,12 @@ Planned capabilities include:
 - Explainable rule conditions and weighted scoring (implemented)
 - Reproducible generator for labeled synthetic login-feature data (implemented)
 - Isolation Forest training from generated normal events (implemented)
+- Standalone model inference with a bounded anomaly risk score (implemented)
 - Additional login behavior features
 - Machine-learning anomaly scoring (in progress)
 - Feedback and monitoring endpoints
 
-The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, synthetic training-data generator, and Isolation Forest training script are implemented. Model inference, evaluation, and other planned capabilities are not yet available.
+The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, synthetic training-data generator, Isolation Forest training script, versioned model registry, and standalone inference service are implemented. The HTTP endpoint still uses rule-only scoring until Phase 5.5; evaluation and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -195,7 +196,7 @@ python scripts/generate_synthetic_data.py --output .\data\synthetic-login-events
 python scripts/train.py --input .\data\synthetic-login-events.csv --output .\artifacts\model.joblib --seed 42
 ```
 
-The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn` and uses `MODEL_PATH` as the base path for versioned artifacts, metadata, and the latest-version manifest. Inference and evaluation are being implemented in the remaining Phase 5 steps.
+The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn` and uses `MODEL_PATH` as the base path for versioned artifacts, metadata, and the latest-version manifest. `InferenceService` loads the registered Isolation Forest and returns a bounded anomaly risk score from its decision function; this score is not a probability. The API does not blend model and rule scores until Phase 5.5. Evaluation is being implemented in the remaining Phase 5 steps.
 
 ## Tests and quality checks
 
@@ -232,6 +233,7 @@ Current files:
 │   ├── __init__.py
 │   ├── ml_data.py
 │   ├── ml_features.py
+│   ├── ml_inference.py
 │   ├── ml_training.py
 │   ├── model_registry.py
 │   ├── db/
@@ -282,7 +284,7 @@ Current files:
 - **Evaluation requests return 503:** set a non-empty `API_KEY` in the environment or `.env`; the service fails closed when authentication is not configured.
 - **Evaluation requests fail with a database error:** run `alembic upgrade head` before starting the API.
 - **Redis connection errors:** start Redis at the configured `REDIS_URL` before using failed-attempt counters.
-- **Model inference/evaluation commands are unavailable:** generation and training are available with `python scripts/generate_synthetic_data.py` and `python scripts/train.py`; inference and evaluation are planned for later Phase 5 steps.
+- **The API does not use model scores yet:** the standalone inference service is implemented, but blending into login evaluation is Phase 5.5. Model evaluation is planned for Phase 5.6.
 
 ## Privacy and security
 

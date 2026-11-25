@@ -1,5 +1,6 @@
 import csv
 import math
+import statistics
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,6 +64,14 @@ def train_isolation_forest(
         n_jobs=1,
     )
     model.fit(normal_features)
+    normal_margin = statistics.median(
+        float(value) for value in model.decision_function(normal_features)
+    )
+    if not math.isfinite(normal_margin) or normal_margin <= 0:
+        raise ValueError(
+            "normal training decision margin must be positive for score calibration"
+        )
+    calibration_scale = normal_margin / math.log(19)
 
     registry = ModelRegistry(output_path)
     registered_model = registry.register(
@@ -72,6 +81,7 @@ def train_isolation_forest(
         suspicious_rows=suspicious_count,
         random_state=random_state,
         contamination=contamination,
+        calibration_scale=calibration_scale,
     )
     return TrainingSummary(
         normal_rows=len(normal_features),

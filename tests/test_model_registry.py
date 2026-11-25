@@ -19,6 +19,7 @@ def test_registry_saves_versioned_artifacts_and_latest_metadata(
         suspicious_rows=5,
         random_state=42,
         contamination=0.05,
+        calibration_scale=0.05,
     )
     second = registry.register(
         {"model": 2},
@@ -27,6 +28,7 @@ def test_registry_saves_versioned_artifacts_and_latest_metadata(
         suspicious_rows=7,
         random_state=9,
         contamination=0.1,
+        calibration_scale=0.08,
     )
     latest = registry.latest()
 
@@ -55,6 +57,7 @@ def test_registry_rejects_manifest_artifact_path_mismatch(tmp_path: Path) -> Non
         suspicious_rows=5,
         random_state=42,
         contamination=0.05,
+        calibration_scale=0.05,
     )
     registry.manifest_path.write_text(
         json.dumps({"version": 1, "artifact": "..\\outside.joblib"}),
@@ -74,6 +77,7 @@ def test_registry_surfaces_missing_registered_artifact(tmp_path: Path) -> None:
         suspicious_rows=5,
         random_state=42,
         contamination=0.05,
+        calibration_scale=0.05,
     )
     registered.artifact_path.unlink()
 

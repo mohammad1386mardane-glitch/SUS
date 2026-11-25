@@ -32,6 +32,7 @@ def test_train_isolation_forest_uses_normal_rows_and_saves_model(
     assert summary.manifest_path == output_path.with_suffix(".json")
     assert summary.model_version == 1
     assert summary.random_state == 9
+    assert summary.output_path.is_file()
     assert isinstance(joblib.load(summary.output_path), IsolationForest)
 
 
