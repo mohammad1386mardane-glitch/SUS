@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 3 feature engineering is underway. Standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, and new-device/new-country flags are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 3 feature engineering is underway. Standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, new-device/new-country flags, and time-of-day deviation are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -17,11 +17,12 @@ Planned capabilities include:
 - User-agent parsing for browser, OS, and device type (implemented)
 - Required travel-speed calculation between two located logins (implemented)
 - New-device and new-country profile comparisons (implemented)
+- Time-of-day deviation from usual UTC login hours (implemented)
 - Additional login behavior features
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, and new-device/new-country flags are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, new-device/new-country flags, and time-of-day deviation are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -84,6 +85,8 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 `required_travel_speed_kmh` computes the Haversine distance between two GeoIP results and divides by the elapsed time. It returns `None` when either location or its coordinates are missing, requires timezone-aware timestamps in increasing order, and reports speed in km/h. It is a standalone feature helper, not yet connected to the API.
 
 `detect_new_login_signals` compares a device ID and country code with a user's `UserProfile`. Device IDs are matched exactly; country codes are matched case-insensitively. A missing profile is treated as empty history, while a missing country does not set the new-country flag.
+
+`time_of_day_deviation_hours` compares the login's UTC hour with the nearest `usual_hours` entry using circular 24-hour distance, returning 0–12 hours. It returns `None` when no profile hours are available and rejects naive timestamps or profile hours outside 0–23. Profile hours must therefore use UTC.
 
 ## Database
 

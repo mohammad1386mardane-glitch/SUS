@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -7,6 +7,7 @@ from app.features import (
     NewLoginSignals,
     detect_new_login_signals,
     required_travel_speed_kmh,
+    time_of_day_deviation_hours,
 )
 from app.geoip import GeoIPResult
 
@@ -172,3 +173,54 @@ def test_detect_new_login_signals_compares_profile_history(
 def test_detect_new_login_signals_rejects_blank_device_ids() -> None:
     with pytest.raises(ValueError, match="device_id cannot be empty"):
         detect_new_login_signals(" ", "US", None)
+
+
+@pytest.mark.parametrize(
+    ("timestamp", "usual_hours", "expected"),
+    [
+        (datetime(2026, 1, 1, 12, tzinfo=UTC), [8, 20], 4),
+        (datetime(2026, 1, 1, 0, 30, tzinfo=UTC), [23], 1),
+        (datetime(2026, 1, 1, 0, 30, tzinfo=UTC), [], None),
+    ],
+)
+def test_time_of_day_deviation_uses_nearest_circular_hour(
+    timestamp: datetime,
+    usual_hours: list[int],
+    expected: int | None,
+) -> None:
+    profile = UserProfile(user_id="user-1", usual_hours=usual_hours)
+
+    assert time_of_day_deviation_hours(timestamp, profile) == expected
+
+
+def test_time_of_day_deviation_normalizes_timestamps_to_utc() -> None:
+    timestamp = datetime(2026, 1, 1, 0, 30, tzinfo=timezone(timedelta(hours=2)))
+    profile = UserProfile(user_id="user-1", usual_hours=[22])
+
+    assert time_of_day_deviation_hours(timestamp, profile) == 0
+
+
+@pytest.mark.parametrize(
+    ("timestamp", "usual_hours", "message"),
+    [
+        (datetime(2026, 1, 1), [8], "timestamp must be timezone-aware"),
+        (
+            datetime(2026, 1, 1, tzinfo=UTC),
+            [24],
+            "usual_hours must contain values from 0 to 23",
+        ),
+    ],
+)
+def test_time_of_day_deviation_rejects_invalid_input(
+    timestamp: datetime,
+    usual_hours: list[int],
+    message: str,
+) -> None:
+    profile = UserProfile(user_id="user-1", usual_hours=usual_hours)
+
+    with pytest.raises(ValueError, match=message):
+        time_of_day_deviation_hours(timestamp, profile)
+
+
+def test_time_of_day_deviation_returns_none_without_profile() -> None:
+    assert time_of_day_deviation_hours(datetime(2026, 1, 1, tzinfo=UTC), None) is None

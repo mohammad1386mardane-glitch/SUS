@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from math import atan2, cos, isfinite, radians, sin, sqrt
 
 from app.db.models import UserProfile
@@ -92,6 +92,26 @@ def detect_new_login_signals(
         is_new_country=(
             normalized_country is not None and normalized_country not in usual_countries
         ),
+    )
+
+
+def time_of_day_deviation_hours(
+    timestamp: datetime,
+    profile: UserProfile | None,
+) -> int | None:
+    if timestamp.utcoffset() is None:
+        raise ValueError("timestamp must be timezone-aware")
+
+    usual_hours = profile.usual_hours if profile is not None else []
+    if not usual_hours:
+        return None
+    if any(not 0 <= hour <= 23 for hour in usual_hours):
+        raise ValueError("usual_hours must contain values from 0 to 23")
+
+    current_hour = timestamp.astimezone(UTC).hour
+    return min(
+        min(abs(current_hour - usual_hour), 24 - abs(current_hour - usual_hour))
+        for usual_hour in usual_hours
     )
 
 
