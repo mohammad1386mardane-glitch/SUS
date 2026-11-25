@@ -8,8 +8,8 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 0 — Setup and Documentation
 - **Latest tag:** None
-- **Current step:** 0.3 — repository metadata and Python project configuration remain to be added
-- **Blockers:** Application code, package configuration, and project tooling are not present yet.
+- **Current step:** 0.4 — project directories remain to be added
+- **Blockers:** Application code and project tooling are not present yet.
 
 ## Coding Conventions
 
@@ -22,7 +22,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Folder Structure
 
-The workspace currently contains `PLAN.md`, `AGENTS.md`, and `README.md`. The intended structure includes:
+The workspace currently contains project documentation, `.gitignore`, `LICENSE`, `pyproject.toml`, and `.env.example`. The intended structure includes:
 
 - `app/` — application code
 - `tests/` — automated tests
@@ -31,7 +31,7 @@ The workspace currently contains `PLAN.md`, `AGENTS.md`, and `README.md`. The in
 
 ## Common Commands
 
-Commands will be documented here and in `README.md` when the project tooling is established. Planned checks include `pytest -q`, `ruff check .`, and `mypy app`; they have not been run because the project skeleton and tooling do not exist yet.
+Commands will be documented here and in `README.md` when the project tooling is established. Planned checks include `pytest -q`, `ruff check .`, and `mypy app`; they have not been run because the application/test skeleton and quality tooling do not exist yet.
 
 ## Agent Working Rules
 
@@ -46,6 +46,7 @@ Commands will be documented here and in `README.md` when the project tooling is 
 |---|---|---|
 | 2026-11-25 | Use the stack and high-level architecture specified in `PLAN.md` (FastAPI, PostgreSQL/SQLite, Redis, scikit-learn). | This is the project plan's proposed baseline; details remain subject to the planned implementation steps. |
 | 2026-11-25 | Set default decisions to `0–39 allow`, `40–78 challenge`, and `79–100 deny`. | The user chose to preserve the plan's example where a score of 78 is `challenge`; these ranges resolve the conflicting earlier defaults. |
+| 2026-11-25 | Use the MIT license and `API_KEY` as the planned API-key environment variable. | The license is a permissive baseline; `API_KEY` gives the previously unnamed setting an explicit placeholder without adding a credential. |
 
 ## Work Log
 
@@ -56,6 +57,8 @@ Commands will be documented here and in `README.md` when the project tooling is 
 | 2026-11-25 | Copilot SDK | Not committed | Resolved the score-78 decision mismatch and aligned the documented default ranges. | `README.md`, `AGENTS.md`, `PLAN.md` | Not run (documentation-only clarification) | User selected the sample behavior; defaults now use 40–78 for `challenge`. |
 | 2026-11-25 | Copilot SDK | `docs: create AGENTS.md memory file` | Committed the project memory file for step 0.1. | `AGENTS.md`, `PLAN.md` | Not run (documentation-only step) | Step 0.2 remains prepared and uncommitted. |
 | 2026-11-25 | Copilot SDK | `docs: create README.md install guide` | Committed the installation and usage guide for step 0.2. | `README.md`, `AGENTS.md`, `PLAN.md` | Not run (documentation-only step) | No application or setup commands are claimed to work before implementation. |
+| 2026-11-25 | Copilot SDK | Not committed | Added repository metadata, ignore rules, and the environment template for step 0.3. | `.gitignore`, `LICENSE`, `pyproject.toml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Pending validation | Uses MIT and `API_KEY`; no real credentials are included. |
+| 2026-11-25 | Copilot SDK | `chore: init repository` | Committed the repository metadata and environment template for step 0.3. | `.gitignore`, `LICENSE`, `pyproject.toml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Static configuration checks passed | TOML parsed; required environment keys and ignore behavior validated. Application installation and tests are not available yet. |
 
 ## Open Questions
 

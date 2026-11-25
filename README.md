@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Setup is in progress. This workspace currently contains planning and documentation only; the API, dependency manifest, environment template, and deployment files have not been created. The implementation sequence is tracked in [PLAN.md](./PLAN.md).
+> **Project status:** Setup is in progress. The Python project metadata and environment template now exist, but the API, runtime dependencies, and deployment files have not been created. The implementation sequence is tracked in [PLAN.md](./PLAN.md).
 
 ## Overview
 
@@ -25,13 +25,15 @@ For the planned application:
 - Docker and Docker Compose for the planned containerized deployment
 - PostgreSQL and Redis for the planned production-style local stack; SQLite is planned for development
 
-Only Python is relevant to the current documentation-only workspace. The service cannot be installed or run yet.
+Only Python is needed for the current skeleton. The service cannot be run yet.
 
 ## Installation
 
 ### Manual installation
 
-The Python project manifest and application code are not available yet. Once those are added, the intended flow is to create a virtual environment, install the project and its development dependencies, configure environment variables, and start the ASGI application. Exact commands will be added and verified when the relevant project files exist.
+The project targets Python 3.12. The API and runtime dependencies are not implemented yet, so installation and start commands will be documented after the application bootstrap is complete.
+
+Configuration names and safe local defaults are listed in [.env.example](./.env.example). Copy that file to `.env` and set a private `API_KEY` only when configuring a local environment. Never commit `.env` or real credentials.
 
 ### Docker installation
 
@@ -39,7 +41,7 @@ Docker support is planned for Phase 7. The `Dockerfile` and Compose configuratio
 
 ## Configuration
 
-There is no `.env` file or `.env.example` yet. The following variable names are explicitly identified by the plan; they are planned configuration, not currently read by an application:
+The environment template is [.env.example](./.env.example). These names are planned configuration and are not read by an application yet:
 
 | Variable | Purpose | Status |
 |---|---|---|
@@ -48,9 +50,9 @@ There is no `.env` file or `.env.example` yet. The following variable names are 
 | `GEOIP_DB_PATH` | Path to the GeoLite2 database | Planned in Phase 3 |
 | `SHADOW_MODE` | Evaluate decisions without enforcing them | Planned in Phase 4 |
 | `MODEL_PATH` | Location of the trained model artifact | Planned in Phase 5 |
-| API key variable | API-key authentication secret | Planned; exact variable name not specified yet |
+| `API_KEY` | API-key authentication secret | Planned for Phase 1; keep the value private |
 
-Threshold settings are also planned to be configurable, but their environment variable names have not been specified.
+Threshold settings are also planned to be configurable, but their environment variable names have not been specified. They will be defined with the settings implementation.
 
 ## API
 
@@ -108,7 +110,7 @@ mypy app
 pre-commit run --all-files
 ```
 
-These commands are not runnable yet because the project skeleton, dependencies, and test suite have not been created.
+These commands are not runnable yet because the application/test skeleton, development dependencies, and test suite have not been created.
 
 ## Project structure
 
@@ -116,16 +118,20 @@ Current files:
 
 ```text
 .
+├── .env.example
+├── .gitignore
 ├── AGENTS.md
+├── LICENSE
 ├── PLAN.md
-└── README.md
+├── README.md
+└── pyproject.toml
 ```
 
 Planned directories include `app/` for the service, `tests/` for automated tests, `scripts/` for model and maintenance scripts, and `docs/` for supplementary documentation.
 
 ## Troubleshooting
 
-- **Cannot install or start the API:** expected at this stage; application code and package configuration are not present yet.
+- **Cannot start the API:** expected at this stage; application code and runtime dependencies are not present yet.
 - **Docker Compose files not found:** Docker support is planned for Phase 7 and has not been added.
 - **Environment variable has no effect:** there is no settings implementation yet. Check the configuration table above for planned variables.
 - **A documented command fails:** the quality and model commands are plans, not verified commands. They will be checked when their implementation steps are reached.
