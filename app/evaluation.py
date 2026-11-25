@@ -13,6 +13,7 @@ from app.features import (
 )
 from app.geoip import GeoIPResult, lookup_ip
 from app.ip_reputation import HighRiskIPList
+from app.ml_inference import InferenceService
 from app.rules import (
     BruteForceRule,
     HighRiskIPRule,
@@ -23,7 +24,7 @@ from app.rules import (
     UnusualHourRule,
 )
 from app.schemas import LoginEventRequest, LoginEventResponse
-from app.scoring import aggregate_score, score_to_decision
+from app.scoring import aggregate_score, blend_scores, score_to_decision
 from app.settings import Settings
 
 _CREDENTIAL_STUFFING_WINDOW = timedelta(minutes=5)
@@ -101,9 +102,15 @@ def evaluate_and_store(
         time_deviation_hours=time_deviation,
     )
     matched_rules = _RULES.evaluate(context)
-    score = aggregate_score(matched_rules)
-    decision = score_to_decision(score, settings)
+    rule_score = aggregate_score(matched_rules)
     reasons = [rule.name for rule in matched_rules]
+    score = rule_score
+    if settings.ml_enabled:
+        ml_result = InferenceService(settings.model_path).score(context)
+        score = blend_scores(rule_score, ml_result.risk_score)
+        if ml_result.is_anomaly:
+            reasons.append("ml_anomaly")
+    decision = score_to_decision(score, settings)
     response = LoginEventResponse(
         event_id=f"evt_{uuid4().hex}",
         risk_score=score,

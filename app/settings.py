@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     geoip_enabled: bool = False
     high_risk_ip_networks: list[str] = Field(default_factory=list)
     model_path: Path = Path("artifacts/model.joblib")
+    ml_enabled: bool = False
     shadow_mode: bool = True
     allow_max_score: int = 39
     challenge_max_score: int = 78

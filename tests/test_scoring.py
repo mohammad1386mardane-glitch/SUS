@@ -8,7 +8,7 @@ from app.rules import (
     NewDeviceAndCountryRule,
     UnusualHourRule,
 )
-from app.scoring import aggregate_score, score_to_decision
+from app.scoring import aggregate_score, blend_scores, score_to_decision
 from app.settings import Settings
 
 
@@ -32,6 +32,29 @@ def test_aggregate_score_caps_at_one_hundred() -> None:
 
 def test_aggregate_score_is_zero_without_matching_rules() -> None:
     assert aggregate_score(()) == 0
+
+
+@pytest.mark.parametrize(
+    ("rule_score", "ml_score", "expected"),
+    [(100, 0, 60), (0, 100, 40), (50, 50, 50), (41, 38, 40)],
+)
+def test_blend_scores_uses_rule_and_ml_weights(
+    rule_score: int,
+    ml_score: int,
+    expected: int,
+) -> None:
+    assert blend_scores(rule_score, ml_score) == expected
+
+
+@pytest.mark.parametrize("score", [-1, 101])
+def test_blend_scores_rejects_out_of_range_values(score: int) -> None:
+    with pytest.raises(ValueError, match="must be between 0 and 100"):
+        blend_scores(score, 50)
+
+
+def test_blend_scores_rejects_boolean_values() -> None:
+    with pytest.raises(TypeError, match="rule_score must be an integer"):
+        blend_scores(True, 50)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -81,6 +104,16 @@ def test_settings_loads_thresholds_from_environment(
 
     assert settings.allow_max_score == 29
     assert settings.challenge_max_score == 69
+
+
+def test_settings_loads_ml_enabled_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ML_ENABLED", "true")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.ml_enabled is True
 
 
 def test_settings_rejects_invalid_threshold_order() -> None:

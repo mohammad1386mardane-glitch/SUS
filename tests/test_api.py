@@ -15,6 +15,8 @@ from app.db.repositories import LoginEventRepository, UserProfileRepository
 from app.db.session import get_session
 from app.geoip import GeoIPResult
 from app.main import app
+from app.ml_inference import InferenceResult, InferenceService
+from app.rules.base import RuleContext
 from app.settings import Settings, get_settings
 
 
@@ -26,7 +28,8 @@ def api_key() -> str:
 @pytest.fixture
 def client(api_key: str, db_session: Session) -> Iterator[TestClient]:
     app.dependency_overrides[get_settings] = lambda: Settings(
-        api_key=SecretStr(api_key)
+        api_key=SecretStr(api_key),
+        ml_enabled=False,
     )
 
     def override_get_session() -> Iterator[Session]:
@@ -101,6 +104,46 @@ def test_evaluate_returns_scored_response(
     assert response_data["risk_score"] == 0
     assert response_data["decision"] == "allow"
     assert response_data["reasons"] == []
+
+
+def test_evaluate_blends_ml_score_and_persists_anomaly_reason(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_score(
+        service: InferenceService,
+        context: RuleContext,
+    ) -> InferenceResult:
+        return InferenceResult(
+            risk_score=75,
+            is_anomaly=True,
+            decision_function=-0.1,
+            model_version=1,
+        )
+
+    monkeypatch.setattr(InferenceService, "score", fake_score)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        ml_enabled=True,
+    )
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 30
+    assert response.json()["decision"] == "allow"
+    assert response.json()["reasons"] == ["ml_anomaly"]
+    db_session.expire_all()
+    stored = LoginEventRepository(db_session).list_for_user("u1")
+    assert stored[0].risk_score == 30
+    assert stored[0].reasons == ["ml_anomaly"]
 
 
 def test_evaluate_scores_and_stores_consecutive_failed_attempts(
