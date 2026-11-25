@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from app.rules import Rule, RuleContext, RuleRegistry
+from app.rules import ImpossibleTravelRule, Rule, RuleContext, RuleRegistry
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,3 +51,16 @@ def test_rule_rejects_weight_outside_score_range(weight: int) -> None:
 def test_rule_rejects_non_integer_weight() -> None:
     with pytest.raises(TypeError, match="rule weight must be an integer"):
         FlagRule("test_rule", 1.5, "is_new_device")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("speed", "expected"),
+    [(None, False), (900, False), (900.01, True), (1200, True)],
+)
+def test_impossible_travel_rule_uses_strict_speed_threshold(
+    speed: float | None,
+    expected: bool,
+) -> None:
+    rule = ImpossibleTravelRule()
+
+    assert rule.condition(RuleContext(impossible_travel_speed_kmh=speed)) is expected
