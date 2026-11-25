@@ -54,18 +54,18 @@ Docker support is planned for Phase 7. The `Dockerfile` and Compose configuratio
 
 ## Configuration
 
-The environment template is [.env.example](./.env.example). These names are planned configuration and are not read by an application yet:
+Settings are loaded from environment variables or a `.env` file using `pydantic-settings`. The template is [.env.example](./.env.example); copy it to `.env` for local configuration. The variables below are now recognized by the application:
 
 | Variable | Purpose | Status |
 |---|---|---|
-| `DATABASE_URL` | Database connection string | Planned in Phase 2 |
-| `REDIS_URL` | Redis connection string | Planned in Phase 2 |
-| `GEOIP_DB_PATH` | Path to the GeoLite2 database | Planned in Phase 3 |
-| `SHADOW_MODE` | Evaluate decisions without enforcing them | Planned in Phase 4 |
-| `MODEL_PATH` | Location of the trained model artifact | Planned in Phase 5 |
-| `API_KEY` | API-key authentication secret | Planned for Phase 1; keep the value private |
+| `DATABASE_URL` | Database connection string | Default: local SQLite URL; database integration planned in Phase 2 |
+| `REDIS_URL` | Redis connection string | Default: local Redis URL; Redis integration planned in Phase 2 |
+| `GEOIP_DB_PATH` | Path to the GeoLite2 database | Default: `data/GeoLite2-City.mmdb`; GeoIP integration planned in Phase 3 |
+| `SHADOW_MODE` | Evaluate decisions without enforcing them | Default: `true`; enforcement behavior planned in Phase 4 |
+| `MODEL_PATH` | Location of the trained model artifact | Default: `artifacts/model.joblib`; model support planned in Phase 5 |
+| `API_KEY` | API-key authentication secret | Defaults to empty; API-key authentication is planned in step 1.5 |
 
-Threshold settings are also planned to be configurable, but their environment variable names have not been specified. They will be defined with the settings implementation.
+`API_KEY` is stored as a secret value and is not included in its normal string representation. Do not put a real key in source control.
 
 ## API
 
@@ -138,7 +138,8 @@ Current files:
 ├── AGENTS.md
 ├── app/
 │   ├── __init__.py
-│   └── main.py
+│   ├── main.py
+│   └── settings.py
 ├── docs/
 ├── LICENSE
 ├── PLAN.md

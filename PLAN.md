@@ -124,7 +124,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | # | Commit | Description | Status |
 |---|---|---|---|
 | 1.1 | `feat(api): bootstrap FastAPI app` | `app/main.py`, `GET /health` | ✅ |
-| 1.2 | `feat(config): add settings via env vars` | `pydantic-settings`, update `.env.example` | ⬜ |
+| 1.2 | `feat(config): add settings via env vars` | `pydantic-settings`, update `.env.example` | ✅ |
 | 1.3 | `feat(schemas): add login event request/response models` | Pydantic models | ⬜ |
 | 1.4 | `feat(api): add POST /v1/login-events/evaluate (stub)` | Fixed `allow` response | ⬜ |
 | 1.5 | `feat(auth): add API key authentication` | `X-API-Key` header | ⬜ |

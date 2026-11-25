@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 1 — Core API
 - **Latest tag:** None
-- **Current step:** 1.2 — add settings via environment variables
+- **Current step:** 1.3 — add login event request/response models
 - **Blockers:** Login evaluation, settings, and API tests are not implemented yet. Phase 0's pytest-based release check remains deferred until the test suite is added.
 
 ## Coding Conventions
@@ -62,6 +62,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `chore: add ruff, mypy and pre-commit` | Configured Ruff, mypy, and pre-commit for step 0.5. | `pyproject.toml`, `.pre-commit-config.yaml`, `README.md`, `AGENTS.md`, `PLAN.md` | `ruff check .`, `mypy app`, and `pre-commit run --all-files` passed | Pytest remains pending until tests and its dependency are introduced. |
 | 2026-11-25 | Copilot SDK | `docs: sync AGENTS.md and README.md with setup` | Synced setup documentation with the verified Python metadata, environment, structure, and quality tooling for step 0.6. | `README.md`, `AGENTS.md`, `PLAN.md` | Editable install and documented quality checks passed on Python 3.14 | Phase acceptance still needs `pytest -q`; no test suite exists yet. |
 | 2026-11-25 | Copilot SDK | `feat(api): bootstrap FastAPI app` | Added the FastAPI application and `GET /health` for step 1.1. | `app/main.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `README.md`, `AGENTS.md`, `PLAN.md` | HTTP health check, Ruff, mypy, and pre-commit passed | Added FastAPI to the isolated mypy hook environment; phase 0 tag remains deferred pending tests. |
+| 2026-11-25 | Copilot SDK | `feat(config): add settings via env vars` | Added typed settings from environment variables and `.env` for step 1.2. | `app/settings.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Settings defaults, `.env` parsing, environment overrides, boolean parsing, secret masking, Ruff, mypy, and pre-commit passed | API keys use `SecretStr`; no real credentials are provided. |
 
 ## Open Questions
 
