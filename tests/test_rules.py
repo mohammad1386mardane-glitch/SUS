@@ -5,6 +5,7 @@ import pytest
 from app.rules import (
     BruteForceRule,
     ImpossibleTravelRule,
+    NewDeviceAndCountryRule,
     Rule,
     RuleContext,
     RuleRegistry,
@@ -94,6 +95,33 @@ def test_brute_force_rule_triggers_on_either_threshold(
             RuleContext(
                 consecutive_failures=consecutive_failures,
                 distinct_users_per_ip=distinct_users_per_ip,
+            )
+        )
+        is expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("is_new_device", "is_new_country", "expected"),
+    [
+        (False, False, False),
+        (True, False, False),
+        (False, True, False),
+        (True, True, True),
+    ],
+)
+def test_new_device_country_rule_requires_both_signals(
+    is_new_device: bool,
+    is_new_country: bool,
+    expected: bool,
+) -> None:
+    rule = NewDeviceAndCountryRule()
+
+    assert (
+        rule.condition(
+            RuleContext(
+                is_new_device=is_new_device,
+                is_new_country=is_new_country,
             )
         )
         is expected
