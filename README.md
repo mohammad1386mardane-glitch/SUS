@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phases 4 and 5 are complete. Phase 6 feedback, profile learning, Prometheus metrics, risk history, and optional per-API-key rate limiting are implemented. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phases 4–6 are complete. Phase 7 is underway; a non-root multi-stage Dockerfile is in place, with Compose, CI, security checks, and final verification remaining. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -70,7 +70,7 @@ Configuration names and safe local defaults are listed in [.env.example](./.env.
 
 ### Docker installation
 
-Docker support is planned for Phase 7. The `Dockerfile` and Compose configuration do not exist yet, so there is no working Docker install command.
+The non-root multi-stage image is defined in `Dockerfile`. The local Compose stack and complete Docker run instructions are being added in Phase 7.2.
 
 ## Configuration
 

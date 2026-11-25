@@ -6,9 +6,9 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Current Status
 
-- **Current phase:** Phase 6 — Feedback and Monitoring (complete)
+- **Current phase:** Phase 7 — Deployment and Hardening
 - **Latest tag:** `v0.5.0`
-- **Current step:** Phase 6 complete; next planned: Phase 7.1 — add multi-stage Dockerfile
+- **Current step:** 7.2 — add Docker Compose stack
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -42,6 +42,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/ml_evaluation.py` — labeled holdout metrics and model evaluation
 - `app/metrics.py` — privacy-safe Prometheus request and decision metrics
 - `app/rate_limit.py` — hashed API-key Redis fixed-window limiter
+- `Dockerfile` — Python 3.12 multi-stage non-root API image
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
@@ -98,6 +99,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Update login profiles only for successful allow decisions without model anomalies or risk reasons other than the low-weight new-device-and-country signal. | This lets confirmed low-risk logins enrich the baseline without learning from failed, challenged, or otherwise flagged attempts. |
 | 2026-11-25 | Expose public Prometheus metrics with route-template HTTP labels and bounded decision labels; use route templates in request logs too. | Aggregated observability remains available without exposing dynamic user IDs or creating high-cardinality labels. |
 | 2026-11-25 | Make API-key fixed-window rate limiting opt-in and Redis-backed; hash API keys in Redis identifiers and fail closed on backend errors. | `RATE_LIMIT_ENABLED=false` preserves local operation without Redis; enabled limits are shared across API instances and return `429` with `Retry-After`. |
+| 2026-11-25 | Build the container from Python 3.12 slim stages, run as UID 10001, and keep the default SQLite database under `/app/data`. | The runtime contains only application dependencies and writable data/model directories; health checks use the public `/health` endpoint. |
 
 ## Work Log
 
@@ -161,6 +163,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(api): add GET /v1/users/{user_id}/risk-history` | Added API-key-protected, newest-first paginated risk history with bounded page size and a response that excludes IP and device identifiers; route-template logging and metrics avoid exposing user IDs. | `app/main.py`, `app/schemas.py`, `app/db/repositories.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_repositories.py -q`: 34 passed; authentication, pagination bounds, ordering, response fields, and user-ID redaction verified; Ruff, mypy, and pre-commit passed | Historical rows without public event IDs remain readable with `event_id: null`. |
 | 2026-11-25 | Copilot SDK | `feat(ratelimit): add rate limiting per API key` | Added opt-in Redis fixed-window limits for authenticated routes, with hashed key identifiers, `429`/`Retry-After`, and fail-closed `503` behavior on Redis errors. | `app/rate_limit.py`, `app/main.py`, `app/settings.py`, `.env.example`, `tests/test_rate_limit.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_rate_limit.py tests/test_redis_counters.py tests/test_scoring.py -q`: 65 passed; Ruff, mypy, and pre-commit passed | Disabled by default to preserve local API operation without Redis; enabling requires a shared Redis backend. |
 | 2026-11-25 | Copilot SDK | `docs: update README endpoints and AGENTS` | Documented all Phase 6 endpoints, public `/metrics`, feedback/risk-history semantics, profile-learning rules, and optional Redis rate-limit configuration; marked Phase 6 complete. | `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 154 passed; Ruff, mypy, and pre-commit passed | Prometheus metrics use route-template labels; risk-history and logs do not expose user IDs or login IP/device data. |
+| 2026-11-25 | Copilot SDK | `chore(docker): add Dockerfile (multi-stage)` | Added a Python 3.12 slim multi-stage image, non-root runtime, writable data/model paths, health check, and build-context exclusions. | `Dockerfile`, `.dockerignore`, `README.md`, `AGENTS.md`, `PLAN.md` | Dockerfile/context reviewed; Docker build not run because Docker CLI is unavailable | The Compose stack and full container usage instructions are the next step. |
 
 ## Open Questions
 
