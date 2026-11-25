@@ -121,13 +121,18 @@ Current files:
 ├── .env.example
 ├── .gitignore
 ├── AGENTS.md
+├── app/
+│   └── __init__.py
+├── docs/
 ├── LICENSE
 ├── PLAN.md
 ├── README.md
-└── pyproject.toml
+├── pyproject.toml
+├── scripts/
+└── tests/
 ```
 
-Planned directories include `app/` for the service, `tests/` for automated tests, `scripts/` for model and maintenance scripts, and `docs/` for supplementary documentation.
+`app/` will contain the service, `tests/` automated tests, `scripts/` model and maintenance scripts, and `docs/` supplementary documentation.
 
 ## Troubleshooting
 

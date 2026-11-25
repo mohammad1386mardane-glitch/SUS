@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 0 — Setup and Documentation
 - **Latest tag:** None
-- **Current step:** 0.4 — project directories remain to be added
+- **Current step:** 0.5 — quality tooling remains to be configured
 - **Blockers:** Application code and project tooling are not present yet.
 
 ## Coding Conventions
@@ -22,12 +22,11 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Folder Structure
 
-The workspace currently contains project documentation, `.gitignore`, `LICENSE`, `pyproject.toml`, and `.env.example`. The intended structure includes:
-
-- `app/` — application code
+- `app/` — application package; service code will be added in Phase 1
 - `tests/` — automated tests
 - `scripts/` — maintenance and model scripts
 - `docs/` — supplementary documentation
+- Root — project metadata, environment template, license, plan, and setup guides
 
 ## Common Commands
 
@@ -59,6 +58,7 @@ Commands will be documented here and in `README.md` when the project tooling is 
 | 2026-11-25 | Copilot SDK | `docs: create README.md install guide` | Committed the installation and usage guide for step 0.2. | `README.md`, `AGENTS.md`, `PLAN.md` | Not run (documentation-only step) | No application or setup commands are claimed to work before implementation. |
 | 2026-11-25 | Copilot SDK | Not committed | Added repository metadata, ignore rules, and the environment template for step 0.3. | `.gitignore`, `LICENSE`, `pyproject.toml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Pending validation | Uses MIT and `API_KEY`; no real credentials are included. |
 | 2026-11-25 | Copilot SDK | `chore: init repository` | Committed the repository metadata and environment template for step 0.3. | `.gitignore`, `LICENSE`, `pyproject.toml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Static configuration checks passed | TOML parsed; required environment keys and ignore behavior validated. Application installation and tests are not available yet. |
+| 2026-11-25 | Copilot SDK | `chore: add project structure` | Added the planned application, test, script, and documentation directories. | `app/__init__.py`, `tests/.gitkeep`, `scripts/.gitkeep`, `docs/.gitkeep`, `README.md`, `AGENTS.md`, `PLAN.md` | Directory structure verified; no tests exist yet | The `app` package marker supports the package discovery configured in `pyproject.toml`. |
 
 ## Open Questions
 
