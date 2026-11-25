@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 6 — Feedback and Monitoring
 - **Latest tag:** `v0.5.0`
-- **Current step:** 6.4 — add user risk-history endpoint
+- **Current step:** 6.5 — add API-key rate limiting
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -154,6 +154,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(api): add POST /v1/feedback` | Added authenticated feedback submission for evaluated events with validated `real_attack` / `false_positive` labels, persistent event IDs, and one-feedback-per-event conflict handling. | `app/main.py`, `app/schemas.py`, `app/db/models.py`, `app/db/repositories.py`, `app/evaluation.py`, `alembic/versions/91f74b2c3ad1_add_login_feedback.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_repositories.py -q`: 25 passed; Ruff, mypy, and pre-commit passed | Feedback is append-once per event; duplicate submission returns `409`. |
 | 2026-11-25 | Copilot SDK | `feat(profile): update user profile on trusted logins` | Learn unique device IDs, available country codes, and UTC login hours only after successful low-risk allowed evaluations. | `app/evaluation.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_features.py tests/test_repositories.py -q`: 50 passed; Ruff, mypy, and pre-commit passed | Failed and higher-risk evaluations do not expand profile baselines; an allowed first device-and-country signal can be learned after success. |
 | 2026-11-25 | Copilot SDK | `feat(metrics): add Prometheus metrics` | Exposed `/metrics` with HTTP request counts, request-duration histograms, and login decision counts; normalized paths to route templates in metrics and request logs. | `app/metrics.py`, `app/main.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py -q`: 22 passed; Ruff, mypy, and pre-commit passed | `/metrics` is public and emits no API keys or user identifiers; the Prometheus client was added as a runtime dependency and to the isolated mypy environment. |
+| 2026-11-25 | Copilot SDK | `feat(api): add GET /v1/users/{user_id}/risk-history` | Added API-key-protected, newest-first paginated risk history with bounded page size and a response that excludes IP and device identifiers; route-template logging and metrics avoid exposing user IDs. | `app/main.py`, `app/schemas.py`, `app/db/repositories.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_repositories.py -q`: 34 passed; authentication, pagination bounds, ordering, response fields, and user-ID redaction verified; Ruff, mypy, and pre-commit passed | Historical rows without public event IDs remain readable with `event_id: null`. |
 
 ## Open Questions
 

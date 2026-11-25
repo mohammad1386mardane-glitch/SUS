@@ -1,12 +1,13 @@
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 from secrets import compare_digest
 from time import perf_counter
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Security, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Security, status
 from fastapi.responses import FileResponse
 from fastapi.security import APIKeyHeader
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -28,10 +29,13 @@ from app.metrics import (
     route_template,
 )
 from app.schemas import (
+    Decision,
     FeedbackRequest,
     FeedbackResponse,
     LoginEventRequest,
     LoginEventResponse,
+    RiskHistoryEntry,
+    RiskHistoryResponse,
 )
 from app.settings import Settings, get_settings
 
@@ -161,3 +165,51 @@ def submit_feedback(
         raise
 
     return FeedbackResponse(event_id=feedback.event_id, label=feedback.label)
+
+
+@app.get(
+    "/v1/users/{user_id}/risk-history",
+    response_model=RiskHistoryResponse,
+    dependencies=[Depends(require_api_key)],
+)
+def get_user_risk_history(
+    user_id: str,
+    session: Annotated[Session, Depends(get_session)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> RiskHistoryResponse:
+    events = LoginEventRepository(session).list_for_user(
+        user_id,
+        limit=limit,
+        offset=offset,
+    )
+    entries: list[RiskHistoryEntry] = []
+    for event in events:
+        entries.append(
+            RiskHistoryEntry(
+                event_id=event.event_id,
+                timestamp=_as_utc(event.timestamp),
+                risk_score=event.risk_score,
+                decision=_stored_decision(event.decision),
+                reasons=event.reasons,
+            )
+        )
+    return RiskHistoryResponse(events=entries, limit=limit, offset=offset)
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.utcoffset() is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _stored_decision(value: str | None) -> Decision | None:
+    if value is None:
+        return None
+    if value == "allow":
+        return "allow"
+    if value == "challenge":
+        return "challenge"
+    if value == "deny":
+        return "deny"
+    raise ValueError("stored login event has an invalid decision")

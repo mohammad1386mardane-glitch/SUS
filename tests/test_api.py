@@ -204,6 +204,80 @@ def test_feedback_rejects_unknown_events_and_invalid_labels(
     assert invalid_label.status_code == 422
 
 
+def test_risk_history_is_authenticated_paginated_and_privacy_limited(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="app.request")
+    event_ids: list[str] = []
+    user_id = "private-user-987"
+    for hour in (12, 13, 14):
+        response = client.post(
+            "/v1/login-events/evaluate",
+            json={
+                **login_event,
+                "user_id": user_id,
+                "timestamp": f"2026-11-25T{hour:02d}:00:00Z",
+            },
+            headers={"X-API-Key": api_key},
+        )
+        assert response.status_code == 200
+        event_ids.append(response.json()["event_id"])
+
+    history = client.get(
+        f"/v1/users/{user_id}/risk-history?limit=1&offset=0",
+        headers={"X-API-Key": api_key},
+    )
+    history_log = json.loads(caplog.records[-1].getMessage())
+    second_page = client.get(
+        f"/v1/users/{user_id}/risk-history?limit=1&offset=1",
+        headers={"X-API-Key": api_key},
+    )
+    metrics = client.get("/metrics")
+
+    assert history.status_code == 200
+    assert history.json()["events"][0]["event_id"] == event_ids[2]
+    assert history.json()["events"][0]["timestamp"].startswith("2026-11-25T14:00:00")
+    assert history.json()["limit"] == 1
+    assert history.json()["offset"] == 0
+    assert set(history.json()["events"][0]) == {
+        "event_id",
+        "timestamp",
+        "risk_score",
+        "decision",
+        "reasons",
+    }
+    assert second_page.status_code == 200
+    assert second_page.json()["events"][0]["event_id"] == event_ids[1]
+    assert history_log["path"] == "/v1/users/{user_id}/risk-history"
+    assert user_id not in json.dumps(history_log)
+    assert metrics.status_code == 200
+    assert ('path="/v1/users/{user_id}/risk-history"') in metrics.text
+    assert user_id not in metrics.text
+
+
+def test_risk_history_requires_api_key(client: TestClient) -> None:
+    response = client.get("/v1/users/user-1/risk-history")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("query", ["limit=0", "limit=101", "offset=-1"])
+def test_risk_history_rejects_invalid_pagination(
+    client: TestClient,
+    api_key: str,
+    query: str,
+) -> None:
+    response = client.get(
+        f"/v1/users/user-1/risk-history?{query}",
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 422
+
+
 def test_evaluate_updates_profile_after_trusted_login(
     client: TestClient,
     api_key: str,
