@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 5 — Machine Learning Model
 - **Latest tag:** `v0.4.0`
-- **Current step:** 5.7 — add model smoke tests
+- **Current step:** 5.8 — update ML training and evaluation documentation
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -143,6 +143,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(ml): add inference service` | Added validated latest-model loading, feature-schema checks, and calibrated bounded anomaly scoring. | `app/ml_inference.py`, `app/ml_training.py`, `app/model_registry.py`, `tests/test_ml_inference.py`, `tests/test_ml_training.py`, `tests/test_model_registry.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 14 focused tests passed; Ruff, mypy, and pre-commit passed; normal and anomalous inference paths exercised | The service is standalone; the API remains rule-only until score blending in step 5.5. |
 | 2026-11-25 | Copilot SDK | `feat(scoring): blend rules + ML score` | Added validated weighted blending and optional model inference in login evaluation, including an anomaly reason. | `app/scoring.py`, `app/settings.py`, `app/evaluation.py`, `.env.example`, `tests/test_scoring.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest` on scoring, API, and ML tests: 52 passed; Ruff, mypy, and pre-commit passed | `ML_ENABLED` defaults to false; enabled evaluation uses 60% rule score and 40% model score. |
 | 2026-11-25 | Copilot SDK | `feat(ml): add evaluation script` | Added shared strict CSV loading, holdout precision/recall/ROC-AUC/false-positive metrics, and an evaluation CLI; added suspicious feature combinations that remain below individual rule thresholds. | `app/ml_data.py`, `app/ml_training.py`, `app/ml_inference.py`, `app/ml_evaluation.py`, `scripts/evaluate.py`, `tests/test_ml_evaluation.py`, `tests/test_ml_data.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 53 selected tests passed; Ruff and mypy passed; generation, training, and evaluation CLIs passed; holdout FPR 1.4%, precision 83.7%, recall 36%, ROC-AUC 85.3% | Holdout used separate seeded synthetic data; metrics are illustrative and do not establish real-world performance. |
+| 2026-11-25 | Copilot SDK | `test(ml): add model smoke tests` | Added a real-model API smoke test that trains a versioned artifact, enables ML inference, and verifies the blended API response stays in range. | `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 42 API, inference, and scoring tests passed; Ruff, mypy, and pre-commit passed | Test trains a temporary synthetic model and exercises registry-backed inference end to end without changing the default rule-only API configuration. |
 
 ## Open Questions
 

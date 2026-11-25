@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 4 rule-engine MVP is complete. Phase 5 is underway: synthetic data generation, Isolation Forest training, a versioned registry, standalone inference, optional score blending, and model evaluation are implemented. Model smoke tests and final documentation remain. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 4 rule-engine MVP is complete. Phase 5 is underway: synthetic data generation, Isolation Forest training, a versioned registry, standalone inference, optional score blending, and model evaluation are implemented. Final documentation and release checks remain. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -31,7 +31,7 @@ Planned capabilities include:
 - Optional machine-learning anomaly scoring (implemented)
 - Feedback and monitoring endpoints
 
-The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, synthetic training-data generator, Isolation Forest training script, versioned model registry, standalone inference service, optional API score blending, and model evaluation script are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. Model smoke tests and other planned capabilities remain.
+The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, synthetic training-data generator, Isolation Forest training script, versioned model registry, standalone inference service, optional API score blending, model evaluation script, and real-model API smoke test are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. Final documentation and other planned capabilities remain.
 
 ## Prerequisites
 

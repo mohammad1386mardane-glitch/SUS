@@ -15,7 +15,9 @@ from app.db.repositories import LoginEventRepository, UserProfileRepository
 from app.db.session import get_session
 from app.geoip import GeoIPResult
 from app.main import app
+from app.ml_data import write_synthetic_dataset
 from app.ml_inference import InferenceResult, InferenceService
+from app.ml_training import train_isolation_forest
 from app.rules.base import RuleContext
 from app.settings import Settings, get_settings
 
@@ -144,6 +146,40 @@ def test_evaluate_blends_ml_score_and_persists_anomaly_reason(
     stored = LoginEventRepository(db_session).list_for_user("u1")
     assert stored[0].risk_score == 30
     assert stored[0].reasons == ["ml_anomaly"]
+
+
+def test_evaluate_with_registered_model_returns_bounded_blended_score(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    tmp_path: Path,
+) -> None:
+    training_data = tmp_path / "training.csv"
+    model_base_path = tmp_path / "model.joblib"
+    write_synthetic_dataset(
+        training_data,
+        normal_count=100,
+        suspicious_count=30,
+        seed=31,
+    )
+    train_isolation_forest(training_data, model_base_path, random_state=31)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        ml_enabled=True,
+        model_path=model_base_path,
+    )
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    response_data = response.json()
+    assert 0 <= response_data["risk_score"] <= 40
+    assert response_data["decision"] in {"allow", "challenge"}
+    assert response_data["reasons"] in ([], ["ml_anomaly"])
 
 
 def test_evaluate_scores_and_stores_consecutive_failed_attempts(
