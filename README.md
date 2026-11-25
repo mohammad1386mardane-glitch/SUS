@@ -83,7 +83,7 @@ The API listens only on `127.0.0.1:8000`; PostgreSQL and Redis are available onl
 
 OpenAPI includes example request and response payloads. The service and optional integrations are shown in [docs/architecture.md](./docs/architecture.md).
 
-Pushing a semantic-version tag such as `v1.2.3` builds and publishes `ghcr.io/<owner>/<repository>` for `linux/amd64` and `linux/arm64`. The workflow also publishes the `1.2` tag; stable version tags update `latest`. Pull requests that change the container build inputs build the image without publishing it.
+Pushing a semantic-version tag such as `v1.2.3` runs the Python checks first, then builds and publishes `ghcr.io/<owner>/<repository>` for `linux/amd64` and `linux/arm64` only if they pass. The workflow also publishes the `1.2` tag; stable version tags update `latest`. Pull requests that change the container build inputs run the same checks and build the image without publishing it.
 
 ## Configuration
 
