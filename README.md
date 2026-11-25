@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 4 rule-engine MVP is complete. The API evaluates explainable rules, returns capped scores and decisions, stores results, and includes a local test page. Phase 5 will add machine-learning scoring. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 4 rule-engine MVP is complete. Phase 5 is underway: a reproducible synthetic login-feature generator is available; model training, inference, and evaluation are being added. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -22,11 +22,12 @@ Planned capabilities include:
 - Membership checks against supplied high-risk IP/CIDR lists (implemented)
 - Typed rule base and deterministic registry (implemented)
 - Explainable rule conditions and weighted scoring (implemented)
+- Reproducible generator for labeled synthetic login-feature data (implemented)
 - Additional login behavior features
-- Machine-learning anomaly scoring
+- Machine-learning anomaly scoring (in progress)
 - Feedback and monitoring endpoints
 
-The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, and local test page are implemented. Machine learning and other planned capabilities are not yet available.
+The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, and synthetic training-data generator are implemented. Model training, inference, evaluation, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -186,7 +187,13 @@ After applying migrations and starting the API, open `http://127.0.0.1:8000/demo
 
 ## Model training
 
-Model training and evaluation are planned for Phase 5. The training script is planned at `scripts/train.py`; neither it nor the model artifacts exist yet. Training, inference, and evaluation commands will be added once implemented and tested.
+Generate a deterministic CSV of numeric login features and normal/suspicious labels with:
+
+```powershell
+python scripts/generate_synthetic_data.py --output .\data\synthetic-login-events.csv --normal-count 1000 --suspicious-count 100 --seed 42
+```
+
+The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training (`scripts/train.py`), inference, and evaluation are being implemented in the remaining Phase 5 steps.
 
 ## Tests and quality checks
 
@@ -269,7 +276,7 @@ Current files:
 - **Evaluation requests return 503:** set a non-empty `API_KEY` in the environment or `.env`; the service fails closed when authentication is not configured.
 - **Evaluation requests fail with a database error:** run `alembic upgrade head` before starting the API.
 - **Redis connection errors:** start Redis at the configured `REDIS_URL` before using failed-attempt counters.
-- **Model commands are unavailable:** training and evaluation scripts are planned for Phase 5 and have not been added.
+- **Model training/evaluation commands are unavailable:** generation is implemented with `python scripts/generate_synthetic_data.py`; training and evaluation are planned for later Phase 5 steps.
 
 ## Privacy and security
 

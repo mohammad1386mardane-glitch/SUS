@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 5 — Machine Learning Model
 - **Latest tag:** `v0.4.0`
-- **Current step:** 5.1 — add synthetic data generator
+- **Current step:** 5.2 — add training script (IsolationForest)
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -40,7 +40,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `tests/test_user_agent.py` — user-agent parsing and device-class tests
 - `tests/test_features.py` — travel-speed and feature-calculation tests
 - `tests/test_ip_reputation.py` — high-risk IP/CIDR membership tests
-- `scripts/` — maintenance and model scripts
+- `scripts/` — maintenance and model scripts; `generate_synthetic_data.py` creates labeled training features
 - `docs/` — supplementary documentation
 - Root — project metadata, environment template, license, plan, and setup guides
 
@@ -129,6 +129,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(api): return reasons list in response` | Integrated history-based rule evaluation and persistence, configured optional GeoIP/reputation sources, and added a same-origin local test page. | `app/evaluation.py`, `app/main.py`, `app/demo.html`, `app/db/repositories.py`, `app/settings.py`, `app/schemas.py`, `alembic/env.py`, `tests/conftest.py`, `tests/test_api.py`, `tests/test_repositories.py`, `tests/test_scoring.py`, `README.md`, `pyproject.toml`, `.env.example`, `AGENTS.md`, `PLAN.md` | `pytest`: 34 targeted tests passed; Ruff, mypy, pre-commit, and Pylance workspace diagnostics passed | Demo page keeps the API key only in page memory; HTTP evaluation requires an API key and a migrated database. |
 | 2026-11-25 | Copilot SDK | `test(rules): add rule tests and edge cases` | Added coverage for no-signal defaults, rule-weight bounds, credential-stuffing time windows, and successful-login reset behavior. | `tests/test_rules.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 111 passed; Ruff, mypy, pre-commit, and Pylance workspace diagnostics passed | Full suite includes database/API integration on isolated SQLite and rule-threshold boundaries. |
 | 2026-11-25 | Copilot SDK | `docs: update README (thresholds, SHADOW_MODE) and AGENTS` | Documented decision boundaries, configurable thresholds, recommendation-only behavior, shadow mode, and local UI testing. | `README.md`, `.env.example`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 111 passed; Ruff, mypy, pre-commit, and Pylance passed; editable install, migrations, API health, browser demo, and wheel contents verified | Browser demo returned four `allow` responses, then score 60 / `challenge` with the brute-force reason on the fifth failed login. |
+| 2026-11-25 | Copilot SDK | `feat(ml): add synthetic data generator` | Added deterministic labeled synthetic login-feature data, a CLI generator, and tests. | `app/ml_features.py`, `app/ml_data.py`, `scripts/generate_synthetic_data.py`, `tests/test_ml_data.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_ml_data.py -q`: 4 passed; Ruff, mypy, pre-commit, and CLI output validation passed | CSV contains normalized, numeric model features and labels only; generation uses a local seeded RNG and no external user data. |
 
 ## Open Questions
 
