@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 3 feature engineering is underway. Standalone GeoLite2 lookup and user-agent parsing are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 3 feature engineering is underway. Standalone GeoLite2 lookup, user-agent parsing, and impossible-travel speed calculation are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -15,11 +15,12 @@ Planned capabilities include:
 - Redis failed-attempt counters with TTL (implemented)
 - MaxMind GeoLite2 IP lookup for country, city, and coordinates (implemented)
 - User-agent parsing for browser, OS, and device type (implemented)
+- Required travel-speed calculation between two located logins (implemented)
 - Additional login behavior features
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, and user-agent parsing are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, and impossible-travel speed calculation are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -78,6 +79,8 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 ## User-agent parsing
 
 `parse_user_agent` returns the parsed browser family, operating-system family, and a device class (`bot`, `tablet`, `mobile`, `desktop`, or `other`). Unknown non-empty strings produce `Other` browser/OS families and the `other` class; empty or whitespace-only input raises `ValueError`. This helper is not yet wired into the login-evaluation endpoint.
+
+`required_travel_speed_kmh` computes the Haversine distance between two GeoIP results and divides by the elapsed time. It returns `None` when either location or its coordinates are missing, requires timezone-aware timestamps in increasing order, and reports speed in km/h. It is a standalone feature helper, not yet connected to the API.
 
 ## Database
 
@@ -178,6 +181,7 @@ Current files:
 │   │   ├── models.py
 │   │   ├── repositories.py
 │   │   └── session.py
+│   ├── features.py
 │   ├── geoip.py
 │   ├── main.py
 │   ├── redis_counters.py
@@ -193,6 +197,7 @@ Current files:
 └── tests/
     ├── conftest.py
     ├── test_api.py
+    ├── test_features.py
     ├── test_geoip.py
     ├── test_redis_counters.py
     ├── test_repositories.py

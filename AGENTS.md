@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 3 — Feature Engineering
 - **Latest tag:** `v0.2.0`
-- **Current step:** 3.3 — add impossible-travel feature
+- **Current step:** 3.4 — add new device / new country flags
 - **Blockers:** GeoLite2 lookups require a locally obtained City database at `GEOIP_DB_PATH`; setup instructions are planned for step 3.9. Risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
@@ -28,10 +28,12 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/redis_counters.py` — Redis-backed failed-attempt counters
 - `app/geoip.py` — GeoLite2 IP-to-location lookup
 - `app/user_agent.py` — browser, OS, and device classification
+- `app/features.py` — standalone login feature calculations
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
 - `tests/test_user_agent.py` — user-agent parsing and device-class tests
+- `tests/test_features.py` — travel-speed and feature-calculation tests
 - `scripts/` — maintenance and model scripts
 - `docs/` — supplementary documentation
 - Root — project metadata, environment template, license, plan, and setup guides
@@ -58,6 +60,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Store Redis failed-attempt counters under hashed user IDs and set each fixed-window TTL atomically on its first increment. | This avoids exposing raw identifiers in Redis keys and keeps window expiry stable as additional failures arrive. |
 | 2026-11-25 | Use MaxMind's `geoip2` reader with the configured GeoLite2 City database; return `None` for addresses without records and surface database/configuration errors. | Callers can distinguish an unlisted address from a broken or missing database without the lookup silently hiding operational failures. |
 | 2026-11-25 | Use the `user-agents` parser for browser/OS families and prioritize bot, tablet, mobile, then desktop device classes. | The feature output is stable and typed, while unknown user-agent strings remain representable as `Other`/`other`. |
+| 2026-11-25 | Calculate travel speed using Haversine distance (mean Earth radius 6371.0088 km), timezone-aware increasing timestamps, and return no speed when coordinates are unavailable. | These rules make the result reproducible and prevent invalid timestamps or missing GeoIP data from becoming misleading velocity values. |
 
 ## Work Log
 
@@ -90,6 +93,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `docs: update README (migrations, DB/Redis) and AGENTS` | Documented the SQLite/PostgreSQL setup, Alembic migrations, repositories, Redis counter TTL, tests, and current Phase 2 status; normalized an import order flagged by Ruff. | `README.md`, `AGENTS.md`, `PLAN.md`, `tests/conftest.py` | Documentation reviewed against implementation; all checks passed | SQLite migrations and repository tests are verified; PostgreSQL connectivity has not been exercised. |
 | 2026-11-25 | Copilot SDK | `feat(geo): integrate GeoLite2` | Added a typed MaxMind City lookup using `GEOIP_DB_PATH`, with explicit handling for unlisted addresses and no silent database-error fallback; configured the isolated mypy hook and aligned Ruff versions, including import normalization. | `app/geoip.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `tests/test_geoip.py`, `tests/conftest.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 20 passed; Ruff, mypy, pre-commit, and Pylance diagnostics pass | GeoLite2 City database files are not included; README setup details are scheduled for step 3.9. |
 | 2026-11-25 | Copilot SDK | `feat(features): add user-agent parsing` | Added a typed user-agent helper for browser/OS families and bot/tablet/mobile/desktop classification with explicit empty-input validation. | `app/user_agent.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `tests/test_user_agent.py`, `README.md`, `AGENTS.md`, `PLAN.md` | User-agent tests: 7 passed; Ruff, mypy, and Pylance diagnostics pass | Parser output was verified for desktop, phone, tablet, bot, and unknown user-agent strings. |
+| 2026-11-25 | Copilot SDK | `feat(features): add impossible-travel feature` | Added timezone-aware Haversine travel-speed calculation with explicit handling for missing coordinates, invalid ranges, and non-positive durations. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Impossible-travel tests: 9 passed; Ruff and mypy passed | Dateline crossing and equatorial distance cases verify the shortest geographic path and km/h output. |
 
 ## Open Questions
 
