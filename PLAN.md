@@ -186,7 +186,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 
 | # | Commit | Description | Status |
 |---|---|---|---|
-| 4.1 | `feat(rules): add rule base class and registry` | Each rule: name, weight, condition | ⬜ |
+| 4.1 | `feat(rules): add rule base class and registry` | Each rule: name, weight, condition | ✅ |
 | 4.2 | `feat(rules): impossible travel rule` | Speed above 900 km/h | ⬜ |
 | 4.3 | `feat(rules): brute force / credential stuffing rule` | Consecutive failures, or one IP across many users | ⬜ |
 | 4.4 | `feat(rules): new device + new country rule` | Combination of two signals | ⬜ |

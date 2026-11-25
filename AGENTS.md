@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 4 — Rule Engine
 - **Latest tag:** `v0.3.0`
-- **Current step:** 4.1 — add rule base class and registry
+- **Current step:** 4.2 — impossible travel rule
 - **Blockers:** None. Live GeoIP lookups require a separately obtained GeoLite2 City database; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -30,6 +30,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/user_agent.py` — browser, OS, and device classification
 - `app/features.py` — standalone login feature calculations
 - `app/ip_reputation.py` — supplied IPv4/IPv6 high-risk IP and CIDR matcher
+- `app/rules/` — typed rule context, abstract rule base, and rule registry
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
@@ -61,6 +62,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Require a configured API key for login evaluation, compare keys with `compare_digest`, and keep `/health` public. | Authentication fails closed with `503` when `API_KEY` is unset, preventing an unconfigured service from accidentally accepting evaluations. |
 | 2026-11-25 | Store Redis failed-attempt counters under hashed user IDs and set each fixed-window TTL atomically on its first increment. | This avoids exposing raw identifiers in Redis keys and keeps window expiry stable as additional failures arrive. |
 | 2026-11-25 | Use MaxMind's `geoip2` reader with the configured GeoLite2 City database; return `None` for addresses without records and surface database/configuration errors. | Callers can distinguish an unlisted address from a broken or missing database without the lookup silently hiding operational failures. |
+| 2026-11-25 | Represent rule inputs as an immutable context and evaluate named, weighted rules in registration order. | Unique names keep reason identifiers unambiguous, and deterministic order makes rule outputs stable for API responses and tests. |
 | 2026-11-25 | Use the `user-agents` parser for browser/OS families and prioritize bot, tablet, mobile, then desktop device classes. | The feature output is stable and typed, while unknown user-agent strings remain representable as `Other`/`other`. |
 | 2026-11-25 | Calculate travel speed using Haversine distance (mean Earth radius 6371.0088 km), timezone-aware increasing timestamps, and return no speed when coordinates are unavailable. | These rules make the result reproducible and prevent invalid timestamps or missing GeoIP data from becoming misleading velocity values. |
 | 2026-11-25 | Treat a missing profile as empty history for device/country novelty; compare opaque device IDs exactly and country codes case-insensitively; missing country data is not a new-country signal. | New-account signals remain explicit without treating unavailable GeoIP as evidence of novelty. |
@@ -106,6 +108,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(features): add IP reputation (VPN/Tor/proxy list)` | Added IPv4/IPv6 IP and CIDR membership checks against caller-supplied high-risk networks. | `app/ip_reputation.py`, `tests/test_ip_reputation.py`, `README.md`, `AGENTS.md`, `PLAN.md` | IP reputation tests: 4 passed; Ruff, mypy, and Pylance diagnostics pass | No external or built-in reputation list is bundled; list lifecycle remains with the caller. |
 | 2026-11-25 | Copilot SDK | `test(features): add unit tests for each feature` | Expanded edge coverage for configured GeoLite2 paths, zero-distance travel, inclusive velocity-window cleanup/TTL, and the complete feature test matrix. | `tests/test_geoip.py`, `tests/test_features.py`, `tests/test_redis_counters.py`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 58 passed; Ruff, mypy, and pre-commit passed | Feature tests cover GeoIP, user agents, travel speed, profile comparisons, time deviation, Redis rolling counts, and IP/CIDR reputation. Pylance shows only the existing unused `event` warning in `app/main.py`. |
 | 2026-11-25 | Copilot SDK | `docs: update README (GeoIP setup) and AGENTS` | Added official GeoLite2 City account, private configuration, GeoIP Update, local path, data-refresh, licensing, and accuracy guidance; synced Phase 3 status. | `README.md`, `.env.example`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 58 passed; Ruff, mypy, pre-commit, editable install, Alembic migration, and `/health` passed | GeoLite download was not exercised because no MaxMind account/license is configured; the database and credentials are not included. |
+| 2026-11-25 | Copilot SDK | `feat(rules): add rule base class and registry` | Added the immutable rule context, validated abstract rule base, and deterministic registry. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 7 passed; Ruff, mypy, and Pylance diagnostics passed | Registry rule names are unique; weights are integers in the 0–100 range. |
 
 ## Open Questions
 

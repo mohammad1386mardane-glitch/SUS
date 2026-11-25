@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 3 feature engineering is complete. Standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, profile novelty/time features, rolling failure counts, and IP-list reputation checks are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. Phase 4 will add the rule engine. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 4 rule-engine work is underway. The rule base and registry are implemented; concrete rules and the login-evaluation pipeline are still being added. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -20,11 +20,12 @@ Planned capabilities include:
 - Time-of-day deviation from usual UTC login hours (implemented)
 - Rolling failed-attempt counts for 1, 5, and 60 minutes (implemented)
 - Membership checks against supplied high-risk IP/CIDR lists (implemented)
+- Typed rule base and deterministic registry (implemented)
 - Additional login behavior features
-- Explainable rule scoring and machine-learning anomaly scoring
+- Concrete scoring rules, API integration, and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, profile novelty/time features, rolling failed-attempt counts, and IP reputation list matching are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, and typed rule base/registry are implemented. Concrete rules and login-evaluation integration are still in progress. Machine learning and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -126,6 +127,10 @@ The migration command and schema checks were verified with SQLite. The PostgreSQ
 
 `HighRiskIPList` matches IPv4/IPv6 addresses against supplied individual IPs and CIDR networks. It ships no VPN, Tor, proxy, or other reputation feed; callers must provide and maintain a trusted list. Invalid addresses or list entries raise `ValueError`. This helper is not yet wired into the evaluation endpoint.
 
+## Rule engine
+
+Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. The concrete rules and API integration are being added in Phase 4.
+
 ## API
 
 Implemented and planned core endpoints:
@@ -215,6 +220,10 @@ Current files:
 │   ├── geoip.py
 │   ├── ip_reputation.py
 │   ├── main.py
+│   ├── rules/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   └── registry.py
 │   ├── redis_counters.py
 │   ├── schemas.py
 │   ├── settings.py
@@ -233,6 +242,7 @@ Current files:
     ├── test_ip_reputation.py
     ├── test_redis_counters.py
     ├── test_repositories.py
+    ├── test_rules.py
     └── test_user_agent.py
 ```
 
