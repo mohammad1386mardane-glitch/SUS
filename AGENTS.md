@@ -8,8 +8,8 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 2 — Data Layer
 - **Latest tag:** `v0.1.0`
-- **Current step:** 2.2 — add the login events table
-- **Blockers:** Event and profile tables are being added in Phase 2; risk scoring remains planned for Phase 4.
+- **Current step:** 2.3 — add the user profiles table
+- **Blockers:** User profiles, repositories, and Redis counters remain in Phase 2; risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
 
@@ -23,6 +23,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 ## Folder Structure
 
 - `app/` — FastAPI service, settings, database session, and ORM models
+- `app/db/models.py` — SQLAlchemy models for stored login data
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `scripts/` — maintenance and model scripts
@@ -72,6 +73,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(api): secure and instrument login evaluation` | Added API tests for public health, API-key behavior, event validation, stub responses, and JSON request logs. | `tests/test_api.py`, `pyproject.toml`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 6 passed; Ruff, mypy, and pre-commit passed | Added `pytest` and `httpx2` to the development dependencies for Starlette's TestClient. |
 | 2026-11-25 | Copilot SDK | `feat(api): secure and instrument login evaluation` | Updated setup, authentication, logging, API, test, and project-status documentation to match the implementation. | `README.md`, `AGENTS.md`, `PLAN.md` | Documentation reviewed against implementation | No separate documentation test is configured. |
 | 2026-11-25 | Copilot SDK | `feat(db): add SQLAlchemy + Alembic setup` | Added synchronous SQLAlchemy engine/session helpers and Alembic migration configuration using `DATABASE_URL`. | `app/db/`, `alembic/`, `alembic.ini`, `pyproject.toml`, `README.md`, `AGENTS.md`, `PLAN.md`, `.env.example` | SQLite connection, Alembic connection, Ruff, and mypy passed | SQLite remains the local default; psycopg is installed for PostgreSQL URLs. |
+| 2026-11-25 | Copilot SDK | `feat(db): add login_events table` | Added the login event ORM model and initial Alembic migration, including score/decision constraints and a user-timestamp index. | `app/db/models.py`, `alembic/env.py`, `alembic/versions/`, `README.md`, `AGENTS.md`, `PLAN.md` | Migration upgrade/check, valid insert, score constraint, Ruff, and mypy passed | Geo data and reasons use JSON columns; event timestamps are timezone-aware. |
 
 ## Open Questions
 
