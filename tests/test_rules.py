@@ -35,6 +35,20 @@ def test_registry_returns_matching_rules_in_registration_order() -> None:
     assert matches == (rules[0], rules[1])
 
 
+def test_registry_returns_no_matches_when_context_has_no_signals() -> None:
+    registry = RuleRegistry(
+        (
+            BruteForceRule(),
+            HighRiskIPRule(),
+            ImpossibleTravelRule(),
+            NewDeviceAndCountryRule(),
+            UnusualHourRule(),
+        )
+    )
+
+    assert registry.evaluate(RuleContext()) == ()
+
+
 def test_registry_rejects_duplicate_rule_names() -> None:
     with pytest.raises(ValueError, match="rule names must be unique"):
         RuleRegistry(
@@ -60,6 +74,11 @@ def test_rule_rejects_weight_outside_score_range(weight: int) -> None:
 def test_rule_rejects_non_integer_weight() -> None:
     with pytest.raises(TypeError, match="rule weight must be an integer"):
         FlagRule("test_rule", 1.5, "is_new_device")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("weight", [0, 100])
+def test_rule_accepts_weight_boundaries(weight: int) -> None:
+    assert FlagRule("test_rule", weight, "is_new_device").weight == weight
 
 
 @pytest.mark.parametrize(

@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 4 — Rule Engine
 - **Latest tag:** `v0.3.0`
-- **Current step:** 4.9 — rule tests and edge cases
+- **Current step:** 4.10 — thresholds, shadow-mode documentation, and Phase 4 release
 - **Blockers:** None. Live GeoIP lookups require a separately obtained GeoLite2 City database; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -126,6 +126,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(rules): unusual hour rule` | Added the UTC time-deviation threshold rule using precomputed profile deviation. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 26 passed; Ruff, mypy, and pre-commit passed | Missing deviation does not trigger; deviations of six hours or greater match. |
 | 2026-11-25 | Copilot SDK | `feat(scoring): aggregate rule scores to 0-100` | Added weighted aggregation capped at 100, configurable allow/challenge thresholds, and score-to-decision mapping. | `app/scoring.py`, `app/settings.py`, `.env.example`, `tests/test_scoring.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Scoring tests: 15 passed; Ruff, mypy, and pre-commit passed | Defaults preserve 39/78 boundary behavior; invalid or overlapping thresholds fail during settings validation. |
 | 2026-11-25 | Copilot SDK | `feat(api): return reasons list in response` | Integrated history-based rule evaluation and persistence, configured optional GeoIP/reputation sources, and added a same-origin local test page. | `app/evaluation.py`, `app/main.py`, `app/demo.html`, `app/db/repositories.py`, `app/settings.py`, `app/schemas.py`, `alembic/env.py`, `tests/conftest.py`, `tests/test_api.py`, `tests/test_repositories.py`, `tests/test_scoring.py`, `README.md`, `pyproject.toml`, `.env.example`, `AGENTS.md`, `PLAN.md` | `pytest`: 34 targeted tests passed; Ruff, mypy, pre-commit, and Pylance workspace diagnostics passed | Demo page keeps the API key only in page memory; HTTP evaluation requires an API key and a migrated database. |
+| 2026-11-25 | Copilot SDK | `test(rules): add rule tests and edge cases` | Added coverage for no-signal defaults, rule-weight bounds, credential-stuffing time windows, and successful-login reset behavior. | `tests/test_rules.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 111 passed; Ruff, mypy, pre-commit, and Pylance workspace diagnostics passed | Full suite includes database/API integration on isolated SQLite and rule-threshold boundaries. |
 
 ## Open Questions
 

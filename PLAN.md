@@ -194,7 +194,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 4.6 | `feat(rules): unusual hour rule` | Login at an atypical hour | ✅ |
 | 4.7 | `feat(scoring): aggregate rule scores to 0-100` | Weighted sum capped at 100 | ✅ |
 | 4.8 | `feat(api): return reasons list in response` | Return the reasons for the decision | ✅ |
-| 4.9 | `test(rules): add rule tests and edge cases` | Boundary tests | ⬜ |
+| 4.9 | `test(rules): add rule tests and edge cases` | Boundary tests | ✅ |
 | 4.10 | `docs: update README (thresholds, SHADOW_MODE) and AGENTS` | Thresholds and shadow mode | ⬜ |
 
 **Default thresholds:** `0–39 → allow`, `40–78 → challenge` (e.g. OTP), `79–100 → deny`. Configurable via settings. These ranges preserve the example response where a score of 78 is `challenge`.

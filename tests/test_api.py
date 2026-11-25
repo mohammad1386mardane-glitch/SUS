@@ -142,6 +142,79 @@ def test_evaluate_scores_and_stores_consecutive_failed_attempts(
     assert stored_events[0].risk_score == 60
 
 
+def test_evaluate_counts_distinct_users_within_five_minute_window(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+) -> None:
+    repository = LoginEventRepository(db_session)
+    timestamp = datetime(2026, 11, 25, 12, 0, tzinfo=UTC)
+    history = (
+        (4, "user-2"),
+        (3, "user-3"),
+        (2, "user-4"),
+        (1, "user-5"),
+        (6, "expired-user"),
+    )
+    for minutes_ago, user_id in history:
+        repository.add(
+            LoginEvent(
+                user_id=user_id,
+                ip="203.0.113.5",
+                device_id="d1",
+                user_agent="browser",
+                timestamp=timestamp - timedelta(minutes=minutes_ago),
+                success=True,
+                reasons=[],
+            )
+        )
+    db_session.commit()
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 60
+    assert response.json()["reasons"] == ["brute_force_or_credential_stuffing"]
+
+
+def test_successful_login_resets_consecutive_failure_rule(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+) -> None:
+    repository = LoginEventRepository(db_session)
+    timestamp = datetime(2026, 11, 25, 12, 0, tzinfo=UTC)
+    for minutes_ago in range(1, 5):
+        repository.add(
+            LoginEvent(
+                user_id="u1",
+                ip="203.0.113.5",
+                device_id="d1",
+                user_agent="browser",
+                timestamp=timestamp - timedelta(minutes=minutes_ago),
+                success=False,
+                reasons=[],
+            )
+        )
+    db_session.commit()
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 0
+    assert response.json()["reasons"] == []
+
+
 def test_evaluate_uses_configured_high_risk_ip_network(
     client: TestClient,
     api_key: str,
