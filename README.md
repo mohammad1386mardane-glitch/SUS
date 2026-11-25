@@ -60,7 +60,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | Variable | Purpose | Status |
 |---|---|---|
 | `DATABASE_URL` | SQLAlchemy database connection string | Default: local SQLite URL; PostgreSQL is supported with psycopg |
-| `REDIS_URL` | Redis connection string | Default: local Redis URL; Redis integration planned in Phase 2 |
+| `REDIS_URL` | Redis connection string for failed-attempt counters | Default: local Redis URL; Redis must be running to use the counters |
 | `GEOIP_DB_PATH` | Path to the GeoLite2 database | Default: `data/GeoLite2-City.mmdb`; GeoIP integration planned in Phase 3 |
 | `SHADOW_MODE` | Evaluate decisions without enforcing them | Default: `true`; enforcement behavior planned in Phase 4 |
 | `MODEL_PATH` | Location of the trained model artifact | Default: `artifacts/model.joblib`; model support planned in Phase 5 |
@@ -81,6 +81,8 @@ alembic upgrade head
 The `login_events` table stores event details, optional JSON geographic data, and validated risk output. Each `user_profiles` row stores a user's usual countries, devices, and login hours as JSON arrays.
 
 `LoginEventRepository` provides event insertion, lookup, and paginated per-user history; `UserProfileRepository` loads and saves profiles. Repository methods flush changes, while the caller owns the session transaction and commit.
+
+`FailedAttemptCounter` stores per-user counters in Redis with a configurable fixed-window TTL. User identifiers are hashed in Redis keys; the counter sets the expiry atomically on the first failure in each window. A Redis server must be available when these counters are used.
 
 ## API
 
@@ -140,7 +142,7 @@ mypy app
 pre-commit run --all-files
 ```
 
-The development extra installs pytest and `httpx2`, the transport required by Starlette's TestClient. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
+The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
 The editable installation, API tests, and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
 

@@ -8,8 +8,8 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 2 — Data Layer
 - **Latest tag:** `v0.1.0`
-- **Current step:** 2.5 — add Redis counters for velocity checks
-- **Blockers:** Redis counters remain in Phase 2; risk scoring remains planned for Phase 4.
+- **Current step:** 2.6 — add repository tests with a temporary database
+- **Blockers:** Phase 2 data-layer tests and docs remain; risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
 
@@ -76,6 +76,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(db): add login_events table` | Added the login event ORM model and initial Alembic migration, including score/decision constraints and a user-timestamp index. | `app/db/models.py`, `alembic/env.py`, `alembic/versions/`, `README.md`, `AGENTS.md`, `PLAN.md` | Migration upgrade/check, valid insert, score constraint, Ruff, and mypy passed | Geo data and reasons use JSON columns; event timestamps are timezone-aware. |
 | 2026-11-25 | Copilot SDK | `feat(db): add user_profiles table` | Added the user profile ORM model and migration for usual countries, devices, and login hours. | `app/db/models.py`, `alembic/versions/`, `README.md`, `AGENTS.md`, `PLAN.md` | Migration upgrade/check, profile defaults/persistence, Ruff, and mypy passed | Profile arrays use JSON columns keyed by `user_id`. |
 | 2026-11-25 | Copilot SDK | `feat(repo): add repository layer` | Added typed login-event and user-profile repositories with insertion, lookup, pagination, and profile upsert operations. | `app/db/repositories.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Repository runtime checks, Ruff, and mypy passed | Repositories flush but leave commit/rollback to the caller's session transaction. |
+| 2026-11-25 | Copilot SDK | `feat(redis): add counters for velocity checks` | Added Redis connection setup and per-user failed-attempt counters with an atomic fixed-window TTL. | `app/redis_counters.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md`, `tests/test_redis_counters.py` | Redis counter tests: 4 passed; Ruff and mypy passed | User IDs are SHA-256 hashed in Redis keys; expiry is assigned on the first failure in a window. |
 
 ## Open Questions
 
