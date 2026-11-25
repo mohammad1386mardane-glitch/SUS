@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 3 feature engineering is underway. Standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, profile novelty/time features, rolling failure counts, and IP-list reputation checks are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 3 feature engineering is complete. Standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, profile novelty/time features, rolling failure counts, and IP-list reputation checks are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. Phase 4 will add the rule engine. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -34,7 +34,7 @@ For the planned application:
 - Docker and Docker Compose for the planned containerized deployment
 - PostgreSQL and Redis for the planned production-style local stack; SQLite is planned for development
 
-Only Python is needed to run the API locally. Configure a non-empty `API_KEY` to use the login-evaluation endpoint.
+Only Python is needed to run the API locally. Configure a non-empty `API_KEY` to use the login-evaluation endpoint. A local GeoLite2 City database is additionally required only when calling the standalone GeoIP helper.
 
 ## Installation
 
@@ -78,7 +78,25 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 
 ## GeoIP lookup
 
-`lookup_ip` reads a MaxMind GeoLite2 City database at `GEOIP_DB_PATH` and returns the country ISO code, city name, latitude, and longitude. It returns `None` when the database has no record for the address. Invalid IP strings and missing or unreadable database files raise errors rather than silently producing a location. The `.mmdb` file is not included in the repository; the download and setup guide is scheduled for Phase 3.9. The login-evaluation endpoint does not yet call this helper.
+`lookup_ip` reads a MaxMind GeoLite2 City database at `GEOIP_DB_PATH` and returns the country ISO code, city name, latitude, and longitude. It returns `None` when the database has no record for the address. Invalid IP strings and missing or unreadable database files raise errors rather than silently producing a location. The `.mmdb` file is not included in the repository. The login-evaluation endpoint does not yet call this helper.
+
+### Downloading and configuring the database
+
+1. [Create a MaxMind account](https://www.maxmind.com/en/geolite-free-ip-geolocation-data), review and accept the [GeoLite End User License Agreement](https://www.maxmind.com/en/geolite2/eula), then [generate a license key](https://support.maxmind.com/knowledge-base/articles/generate-a-maxmind-license-key).
+2. Install the official [GeoIP Update utility](https://github.com/maxmind/geoipupdate/releases). MaxMind recommends it for binary `.mmdb` databases; see the [GeoLite guide](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/) and [update instructions](https://dev.maxmind.com/geoip/updating-databases/).
+3. Use the pre-filled `GeoIP.conf` available from your MaxMind account, keeping the file outside the repository. Set its edition to `EditionIDs GeoLite2-City`. It contains account credentials; never commit it or put its credentials in source code or logs.
+4. From the repository root in PowerShell, download the database into the git-ignored `data/` directory:
+
+   ```powershell
+   New-Item -ItemType Directory -Force .\data | Out-Null
+   geoipupdate -f "C:\path\outside\repository\GeoIP.conf" -d ".\data"
+   Test-Path .\data\GeoLite2-City.mmdb
+   ```
+
+   The final command should return `True`.
+5. The default `GEOIP_DB_PATH` in [.env.example](./.env.example) already points to `data/GeoLite2-City.mmdb`. Set it in your ignored `.env` only if you store the database elsewhere.
+
+GeoLite locations are approximate areas, not precise addresses or households; treat coordinates and travel-speed features as risk signals rather than proof of a user's physical location. MaxMind requires GeoLite databases to be kept current and outdated copies deleted within 30 days of a new release. See the [official update guidance](https://dev.maxmind.com/geoip/updating-databases/). GeoIP unit tests stub the database reader and do not require a downloaded database.
 
 ## User-agent parsing
 
