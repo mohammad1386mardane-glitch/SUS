@@ -113,7 +113,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 0.2 | `docs: create README.md install guide` | **The agent creates `README.md` per section (A)** (install guide, env vars, API example) | ✅ |
 | 0.3 | `chore: init repository` | Repo, `.gitignore`, `LICENSE`, `pyproject.toml`, `.env.example` | ✅ |
 | 0.4 | `chore: add project structure` | `app/`, `tests/`, `scripts/`, `docs/` folders | ✅ |
-| 0.5 | `chore: add ruff, mypy and pre-commit` | Linter, type checker, pre-commit hooks | ⬜ |
+| 0.5 | `chore: add ruff, mypy and pre-commit` | Linter, type checker, pre-commit hooks | ✅ |
 | 0.6 | `docs: sync AGENTS.md and README.md with setup` | Align docs with the real project structure | ⬜ |
 
 **Done when:** `AGENTS.md`, `README.md`, and `.env.example` exist; `pre-commit run --all-files` passes.

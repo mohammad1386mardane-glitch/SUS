@@ -31,7 +31,16 @@ Only Python is needed for the current skeleton. The service cannot be run yet.
 
 ### Manual installation
 
-The project targets Python 3.12. The API and runtime dependencies are not implemented yet, so installation and start commands will be documented after the application bootstrap is complete.
+The project targets Python 3.12 or newer. From the repository root, create and activate a virtual environment, then install the development tooling:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+The API and runtime dependencies are not implemented yet, so there is no service start command.
 
 Configuration names and safe local defaults are listed in [.env.example](./.env.example). Copy that file to `.env` and set a private `API_KEY` only when configuring a local environment. Never commit `.env` or real credentials.
 
@@ -101,16 +110,15 @@ Model training and evaluation are planned for Phase 5. The training script is pl
 
 ## Tests and quality checks
 
-The planned project checks are:
+Run the configured quality checks from the repository root:
 
-```text
-pytest -q
+```powershell
 ruff check .
 mypy app
 pre-commit run --all-files
 ```
 
-These commands are not runnable yet because the application/test skeleton, development dependencies, and test suite have not been created.
+The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy. `pytest -q` is planned, but the test suite and pytest dependency have not been added yet.
 
 ## Project structure
 
@@ -120,6 +128,7 @@ Current files:
 .
 ├── .env.example
 ├── .gitignore
+├── .pre-commit-config.yaml
 ├── AGENTS.md
 ├── app/
 │   └── __init__.py
