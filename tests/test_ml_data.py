@@ -17,6 +17,38 @@ def test_generate_samples_is_reproducible_and_contains_both_labels() -> None:
     assert {sample.label for sample in first} == {0, 1}
     assert sum(sample.label == 0 for sample in first) == 20
     assert sum(sample.label == 1 for sample in first) == 5
+    assert all(
+        sample.context.impossible_travel_speed_kmh is None
+        or sample.context.impossible_travel_speed_kmh <= 900
+        for sample in first
+        if sample.label == 0
+    )
+    assert all(
+        sample.context.consecutive_failures < 5
+        and sample.context.distinct_users_per_ip < 5
+        and not (sample.context.is_new_device and sample.context.is_new_country)
+        and not sample.context.is_high_risk_ip
+        and sample.context.time_deviation_hours is not None
+        and sample.context.time_deviation_hours < 6
+        for sample in first
+        if sample.label == 0
+    )
+    assert all(
+        (
+            sample.context.impossible_travel_speed_kmh is not None
+            and sample.context.impossible_travel_speed_kmh > 900
+        )
+        or sample.context.consecutive_failures >= 5
+        or sample.context.distinct_users_per_ip >= 5
+        or (sample.context.is_new_device and sample.context.is_new_country)
+        or sample.context.is_high_risk_ip
+        or (
+            sample.context.time_deviation_hours is not None
+            and sample.context.time_deviation_hours >= 6
+        )
+        for sample in first
+        if sample.label == 1
+    )
 
 
 def test_generate_samples_rejects_empty_class_counts() -> None:
@@ -43,11 +75,7 @@ def test_write_synthetic_dataset_creates_numeric_csv_with_feature_schema(
     assert count == len(rows) == 15
     assert reader.fieldnames == [*FEATURE_NAMES, "label"]
     assert {row["label"] for row in rows} == {"0", "1"}
-    assert all(
-        0.0 <= float(row[name]) <= 1.0
-        for row in rows
-        for name in FEATURE_NAMES
-    )
+    assert all(0.0 <= float(row[name]) <= 1.0 for row in rows for name in FEATURE_NAMES)
 
 
 def test_features_from_context_maps_optional_and_capped_signals() -> None:

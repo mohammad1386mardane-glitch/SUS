@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 5 — Machine Learning Model
 - **Latest tag:** `v0.4.0`
-- **Current step:** 5.2 — add training script (IsolationForest)
+- **Current step:** 5.3 — add model registry (versioned artifacts)
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -40,7 +40,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `tests/test_user_agent.py` — user-agent parsing and device-class tests
 - `tests/test_features.py` — travel-speed and feature-calculation tests
 - `tests/test_ip_reputation.py` — high-risk IP/CIDR membership tests
-- `scripts/` — maintenance and model scripts; `generate_synthetic_data.py` creates labeled training features
+- `scripts/` — maintenance and model scripts; includes `generate_synthetic_data.py` and `train.py`
 - `docs/` — supplementary documentation
 - Root — project metadata, environment template, license, plan, and setup guides
 
@@ -80,6 +80,8 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Compare login-hour profiles in UTC and calculate distance to the nearest usual hour on a circular 24-hour clock. | The profile schema has no timezone field, so UTC provides a consistent basis for both observed login hours and feature evaluation. |
 | 2026-11-25 | Store rolling failure events in hashed Redis sorted sets, use inclusive 1/5/60-minute score windows, and expire the set after one hour. | Sorted sets preserve event timestamps for genuine rolling counts, unlike the existing fixed-window counter; Lua keeps writes and multi-window reads atomic. |
 | 2026-11-25 | Make IP reputation matching accept a caller-supplied IPv4/IPv6 address/CIDR list and ship no reputation feed. | No trusted VPN/Tor/proxy source or update policy is specified, so the matcher stays reusable without embedding stale or unverified classifications. |
+| 2026-11-25 | Train Isolation Forest on only labeled normal rows, using seed 42, 100 estimators, and 5% contamination by default. | Isolation Forest is unsupervised; suspicious labels remain available for evaluation, while deterministic defaults make local retraining repeatable. |
+| 2026-11-25 | Keep synthetic normal examples below every configured rule threshold, and ensure the distinct-user count includes at least the current user. | This keeps synthetic labels aligned with rule behavior and mirrors the API's observed per-IP count semantics. |
 
 ## Work Log
 
@@ -130,6 +132,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `test(rules): add rule tests and edge cases` | Added coverage for no-signal defaults, rule-weight bounds, credential-stuffing time windows, and successful-login reset behavior. | `tests/test_rules.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 111 passed; Ruff, mypy, pre-commit, and Pylance workspace diagnostics passed | Full suite includes database/API integration on isolated SQLite and rule-threshold boundaries. |
 | 2026-11-25 | Copilot SDK | `docs: update README (thresholds, SHADOW_MODE) and AGENTS` | Documented decision boundaries, configurable thresholds, recommendation-only behavior, shadow mode, and local UI testing. | `README.md`, `.env.example`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 111 passed; Ruff, mypy, pre-commit, and Pylance passed; editable install, migrations, API health, browser demo, and wheel contents verified | Browser demo returned four `allow` responses, then score 60 / `challenge` with the brute-force reason on the fifth failed login. |
 | 2026-11-25 | Copilot SDK | `feat(ml): add synthetic data generator` | Added deterministic labeled synthetic login-feature data, a CLI generator, and tests. | `app/ml_features.py`, `app/ml_data.py`, `scripts/generate_synthetic_data.py`, `tests/test_ml_data.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_ml_data.py -q`: 4 passed; Ruff, mypy, pre-commit, and CLI output validation passed | CSV contains normalized, numeric model features and labels only; generation uses a local seeded RNG and no external user data. |
+| 2026-11-25 | Copilot SDK | `feat(ml): add training script (IsolationForest)` | Added validated synthetic CSV loading and reproducible normal-only Isolation Forest training; tightened generated labels to match rule boundaries. | `app/ml_training.py`, `scripts/train.py`, `tests/test_ml_training.py`, `app/ml_data.py`, `tests/test_ml_data.py`, `pyproject.toml`, `README.md`, `AGENTS.md`, `PLAN.md` | Focused tests: 8 passed; Ruff, mypy, pre-commit, dependency install, pip check, and generation/training CLI passed | Model training defaults to seed 42, 100 estimators, and 5% contamination; output honors `MODEL_PATH`. |
 
 ## Open Questions
 

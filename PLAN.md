@@ -207,7 +207,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | # | Commit | Description | Status |
 |---|---|---|---|
 | 5.1 | `feat(ml): add synthetic data generator` | Synthetic normal and suspicious data | ✅ |
-| 5.2 | `feat(ml): add training script (IsolationForest)` | `scripts/train.py` | ⬜ |
+| 5.2 | `feat(ml): add training script (IsolationForest)` | `scripts/train.py` | ✅ |
 | 5.3 | `feat(ml): add model registry (versioned artifacts)` | Save models with version and metadata | ⬜ |
 | 5.4 | `feat(ml): add inference service` | Load model and compute anomaly score | ⬜ |
 | 5.5 | `feat(scoring): blend rules + ML score` | e.g. `0.6 * rules + 0.4 * ml` | ⬜ |

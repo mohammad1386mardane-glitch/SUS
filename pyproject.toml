@@ -13,10 +13,12 @@ dependencies = [
     "alembic>=1.14",
     "fastapi>=0.115",
     "geoip2>=4.8",
+    "joblib>=1.4",
     "pydantic-settings>=2.7",
     "psycopg[binary]>=3.2",
     "python-dotenv>=1.0",
     "redis>=5.2",
+    "scikit-learn>=1.6",
     "sqlalchemy>=2.0",
     "user-agents>=2.2",
     "uvicorn[standard]>=0.34",
@@ -60,4 +62,8 @@ warn_unused_configs = true
 
 [[tool.mypy.overrides]]
 module = ["user_agents"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["joblib", "sklearn.*"]
 ignore_missing_imports = true

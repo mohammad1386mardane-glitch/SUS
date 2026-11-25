@@ -31,12 +31,9 @@ def generate_samples(
         raise ValueError("normal_count and suspicious_count must both be positive")
 
     rng = random.Random(seed)
-    samples = [
-        SyntheticSample(_normal_context(rng), 0) for _ in range(normal_count)
-    ]
+    samples = [SyntheticSample(_normal_context(rng), 0) for _ in range(normal_count)]
     samples.extend(
-        SyntheticSample(_suspicious_context(rng), 1)
-        for _ in range(suspicious_count)
+        SyntheticSample(_suspicious_context(rng), 1) for _ in range(suspicious_count)
     )
     rng.shuffle(samples)
     return samples
@@ -63,13 +60,14 @@ def write_synthetic_dataset(
 
 
 def _normal_context(rng: random.Random) -> RuleContext:
+    is_new_device = rng.random() < 0.08
+    is_new_country = rng.random() < 0.02 and not is_new_device
     return RuleContext(
         impossible_travel_speed_kmh=min(rng.expovariate(1 / 120), 850),
         consecutive_failures=int(rng.random() < 0.03),
-        distinct_users_per_ip=1 if rng.random() < 0.02 else 0,
-        is_new_device=rng.random() < 0.08,
-        is_new_country=rng.random() < 0.02,
-        is_high_risk_ip=rng.random() < 0.005,
+        distinct_users_per_ip=2 if rng.random() < 0.02 else 1,
+        is_new_device=is_new_device,
+        is_new_country=is_new_country,
         time_deviation_hours=rng.randint(0, 5),
     )
 

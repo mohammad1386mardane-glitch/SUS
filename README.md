@@ -23,11 +23,12 @@ Planned capabilities include:
 - Typed rule base and deterministic registry (implemented)
 - Explainable rule conditions and weighted scoring (implemented)
 - Reproducible generator for labeled synthetic login-feature data (implemented)
+- Isolation Forest training from generated normal events (implemented)
 - Additional login behavior features
 - Machine-learning anomaly scoring (in progress)
 - Feedback and monitoring endpoints
 
-The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, and synthetic training-data generator are implemented. Model training, inference, evaluation, and other planned capabilities are not yet available.
+The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, synthetic training-data generator, and Isolation Forest training script are implemented. Model inference, evaluation, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -187,13 +188,14 @@ After applying migrations and starting the API, open `http://127.0.0.1:8000/demo
 
 ## Model training
 
-Generate a deterministic CSV of numeric login features and normal/suspicious labels with:
+Generate a deterministic CSV of numeric login features and normal/suspicious labels, then train an Isolation Forest using only the normal rows:
 
 ```powershell
 python scripts/generate_synthetic_data.py --output .\data\synthetic-login-events.csv --normal-count 1000 --suspicious-count 100 --seed 42
+python scripts/train.py --input .\data\synthetic-login-events.csv --output .\artifacts\model.joblib --seed 42
 ```
 
-The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training (`scripts/train.py`), inference, and evaluation are being implemented in the remaining Phase 5 steps.
+The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn` and saves the artifact to `MODEL_PATH` by default. Inference and evaluation are being implemented in the remaining Phase 5 steps.
 
 ## Tests and quality checks
 
