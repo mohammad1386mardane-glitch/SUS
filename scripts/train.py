@@ -28,8 +28,9 @@ def main() -> None:
     )
     print(
         f"Trained IsolationForest on {summary.normal_rows} normal rows "
-        f"({summary.suspicious_rows} suspicious rows reserved) and saved "
-        f"to {summary.output_path}"
+        f"({summary.suspicious_rows} suspicious rows reserved) as version "
+        f"{summary.model_version}: {summary.output_path} "
+        f"(registry: {summary.manifest_path})"
     )
 
 

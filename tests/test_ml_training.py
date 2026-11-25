@@ -28,9 +28,11 @@ def test_train_isolation_forest_uses_normal_rows_and_saves_model(
 
     assert summary.normal_rows == 30
     assert summary.suspicious_rows == 8
-    assert summary.output_path == output_path
+    assert summary.output_path == tmp_path / "artifacts" / "model-v0001.joblib"
+    assert summary.manifest_path == output_path.with_suffix(".json")
+    assert summary.model_version == 1
     assert summary.random_state == 9
-    assert isinstance(joblib.load(output_path), IsolationForest)
+    assert isinstance(joblib.load(summary.output_path), IsolationForest)
 
 
 @pytest.mark.parametrize("contamination", [0.0, 0.51])

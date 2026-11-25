@@ -80,7 +80,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `ALLOW_MAX_SCORE` | Highest score classified as `allow` | Default: `39`; must be lower than `CHALLENGE_MAX_SCORE` |
 | `CHALLENGE_MAX_SCORE` | Highest score classified as `challenge` | Default: `78`; scores above this are `deny` |
 | `SHADOW_MODE` | Advisory marker for downstream enforcement | Default: `true`; the API returns the same score/decision in either mode and never blocks logins |
-| `MODEL_PATH` | Location of the trained model artifact | Default: `artifacts/model.joblib`; model support planned in Phase 5 |
+| `MODEL_PATH` | Base path for the versioned model registry | Default: `artifacts/model.joblib`; writes numbered artifacts and a `model.json` latest-version manifest |
 | `API_KEY` | API-key authentication secret for login evaluation | Required; when empty, evaluation requests return `503 Service Unavailable` |
 
 `API_KEY` is stored as a secret value and is not included in its normal string representation. Do not put a real key in source control.
@@ -195,7 +195,7 @@ python scripts/generate_synthetic_data.py --output .\data\synthetic-login-events
 python scripts/train.py --input .\data\synthetic-login-events.csv --output .\artifacts\model.joblib --seed 42
 ```
 
-The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn` and saves the artifact to `MODEL_PATH` by default. Inference and evaluation are being implemented in the remaining Phase 5 steps.
+The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn` and uses `MODEL_PATH` as the base path for versioned artifacts, metadata, and the latest-version manifest. Inference and evaluation are being implemented in the remaining Phase 5 steps.
 
 ## Tests and quality checks
 
@@ -230,6 +230,10 @@ Current files:
 ├── AGENTS.md
 ├── app/
 │   ├── __init__.py
+│   ├── ml_data.py
+│   ├── ml_features.py
+│   ├── ml_training.py
+│   ├── model_registry.py
 │   ├── db/
 │   │   ├── base.py
 │   │   ├── models.py
@@ -278,7 +282,7 @@ Current files:
 - **Evaluation requests return 503:** set a non-empty `API_KEY` in the environment or `.env`; the service fails closed when authentication is not configured.
 - **Evaluation requests fail with a database error:** run `alembic upgrade head` before starting the API.
 - **Redis connection errors:** start Redis at the configured `REDIS_URL` before using failed-attempt counters.
-- **Model training/evaluation commands are unavailable:** generation is implemented with `python scripts/generate_synthetic_data.py`; training and evaluation are planned for later Phase 5 steps.
+- **Model inference/evaluation commands are unavailable:** generation and training are available with `python scripts/generate_synthetic_data.py` and `python scripts/train.py`; inference and evaluation are planned for later Phase 5 steps.
 
 ## Privacy and security
 

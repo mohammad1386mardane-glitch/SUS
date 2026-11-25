@@ -3,10 +3,10 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 
-import joblib
 from sklearn.ensemble import IsolationForest
 
 from app.ml_features import FEATURE_NAMES
+from app.model_registry import ModelRegistry
 
 DEFAULT_CONTAMINATION = 0.05
 
@@ -16,6 +16,8 @@ class TrainingSummary:
     normal_rows: int
     suspicious_rows: int
     output_path: Path
+    manifest_path: Path
+    model_version: int
     random_state: int
     contamination: float
 
@@ -36,9 +38,7 @@ def train_isolation_forest(
     with input_path.open(newline="", encoding="utf-8") as input_file:
         reader = csv.DictReader(input_file)
         if reader.fieldnames != expected_fields:
-            raise ValueError(
-                f"dataset columns must be exactly {expected_fields!r}"
-            )
+            raise ValueError(f"dataset columns must be exactly {expected_fields!r}")
         for line_number, row in enumerate(reader, start=2):
             label = row["label"]
             if label not in {"0", "1"}:
@@ -64,12 +64,21 @@ def train_isolation_forest(
     )
     model.fit(normal_features)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, output_path)
+    registry = ModelRegistry(output_path)
+    registered_model = registry.register(
+        model,
+        model_type="sklearn.ensemble.IsolationForest",
+        normal_rows=len(normal_features),
+        suspicious_rows=suspicious_count,
+        random_state=random_state,
+        contamination=contamination,
+    )
     return TrainingSummary(
         normal_rows=len(normal_features),
         suspicious_rows=suspicious_count,
-        output_path=output_path,
+        output_path=registered_model.artifact_path,
+        manifest_path=registry.manifest_path,
+        model_version=registered_model.metadata.version,
         random_state=random_state,
         contamination=contamination,
     )
