@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 4 — Rule Engine
 - **Latest tag:** `v0.3.0`
-- **Current step:** 4.7 — aggregate rule scores
+- **Current step:** 4.8 — API reasons and simple test page
 - **Blockers:** None. Live GeoIP lookups require a separately obtained GeoLite2 City database; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -31,6 +31,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/features.py` — standalone login feature calculations
 - `app/ip_reputation.py` — supplied IPv4/IPv6 high-risk IP and CIDR matcher
 - `app/rules/` — typed rule context, abstract rule base, and rule registry
+- `app/scoring.py` — capped weighted scoring and configurable decision thresholds
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
@@ -68,6 +69,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Trigger the new-login rule only when both device and country are new; assign weight 30. | The plan describes the paired signals as a combination, so either signal alone remains insufficient to activate this rule. |
 | 2026-11-25 | Trigger the high-risk IP rule for a positive caller-supplied reputation match and assign weight 40. | Reputation matches are only as trustworthy as the caller's maintained list, so the rule contributes challenge-level risk without denying on its own. |
 | 2026-11-25 | Treat a time-of-day deviation of at least six hours as unusual and assign weight 15. | The deviation helper returns circular UTC distance; the lower weight lets time-of-day contribute without making it decisive by itself. |
+| 2026-11-25 | Sum triggered rule weights with a cap at 100; classify scores using configurable 39/78 upper bounds. | These defaults preserve the agreed 0–39 allow, 40–78 challenge, and 79–100 deny behavior while keeping the score bounded. |
 | 2026-11-25 | Use the `user-agents` parser for browser/OS families and prioritize bot, tablet, mobile, then desktop device classes. | The feature output is stable and typed, while unknown user-agent strings remain representable as `Other`/`other`. |
 | 2026-11-25 | Calculate travel speed using Haversine distance (mean Earth radius 6371.0088 km), timezone-aware increasing timestamps, and return no speed when coordinates are unavailable. | These rules make the result reproducible and prevent invalid timestamps or missing GeoIP data from becoming misleading velocity values. |
 | 2026-11-25 | Treat a missing profile as empty history for device/country novelty; compare opaque device IDs exactly and country codes case-insensitively; missing country data is not a new-country signal. | New-account signals remain explicit without treating unavailable GeoIP as evidence of novelty. |
@@ -119,6 +121,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(rules): new device + new country rule` | Added the paired novelty rule requiring both new-device and new-country signals. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 20 passed; Ruff, mypy, and pre-commit passed | Either novelty signal alone does not trigger the rule; default weight is 30. |
 | 2026-11-25 | Copilot SDK | `feat(rules): high-risk IP rule` | Added the rule condition for a positive high-risk IP/CIDR reputation signal. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 22 passed; Ruff, mypy, and pre-commit passed | Default weight 40 reaches challenge range; the external reputation list remains caller-managed. |
 | 2026-11-25 | Copilot SDK | `feat(rules): unusual hour rule` | Added the UTC time-deviation threshold rule using precomputed profile deviation. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 26 passed; Ruff, mypy, and pre-commit passed | Missing deviation does not trigger; deviations of six hours or greater match. |
+| 2026-11-25 | Copilot SDK | `feat(scoring): aggregate rule scores to 0-100` | Added weighted aggregation capped at 100, configurable allow/challenge thresholds, and score-to-decision mapping. | `app/scoring.py`, `app/settings.py`, `.env.example`, `tests/test_scoring.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Scoring tests: 15 passed; Ruff, mypy, and pre-commit passed | Defaults preserve 39/78 boundary behavior; invalid or overlapping thresholds fail during settings validation. |
 
 ## Open Questions
 

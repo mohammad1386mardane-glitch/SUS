@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 4 rule-engine work is underway. The rule base and registry are implemented; concrete rules and the login-evaluation pipeline are still being added. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 4 rule-engine work is underway. The rule base, five concrete rules, capped weighted scoring, and configurable decision thresholds are implemented; the login-evaluation pipeline and demo page are next. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -21,11 +21,12 @@ Planned capabilities include:
 - Rolling failed-attempt counts for 1, 5, and 60 minutes (implemented)
 - Membership checks against supplied high-risk IP/CIDR lists (implemented)
 - Typed rule base and deterministic registry (implemented)
+- Explainable rule conditions and weighted scoring (implemented)
 - Additional login behavior features
 - Concrete scoring rules, API integration, and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, and typed rule base/registry are implemented. Concrete rules and login-evaluation integration are still in progress. Machine learning and other planned capabilities are not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, and weighted scoring are implemented. Login-event evaluation still returns a stub until Phase 4.8 integrates the pipeline. Machine learning and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -71,6 +72,8 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `DATABASE_URL` | SQLAlchemy database connection string | Default: local SQLite URL; PostgreSQL is supported with psycopg |
 | `REDIS_URL` | Redis connection string for failed-attempt counters | Default: local Redis URL; Redis must be running to use the counters |
 | `GEOIP_DB_PATH` | Path to the GeoLite2 City database used by the IP lookup | Default: `data/GeoLite2-City.mmdb`; the database file must be obtained separately |
+| `ALLOW_MAX_SCORE` | Highest score classified as `allow` | Default: `39` |
+| `CHALLENGE_MAX_SCORE` | Highest score classified as `challenge` | Default: `78`; scores above this are `deny` |
 | `SHADOW_MODE` | Evaluate decisions without enforcing them | Default: `true`; enforcement behavior planned in Phase 4 |
 | `MODEL_PATH` | Location of the trained model artifact | Default: `artifacts/model.joblib`; model support planned in Phase 5 |
 | `API_KEY` | API-key authentication secret for login evaluation | Required; when empty, evaluation requests return `503 Service Unavailable` |
@@ -129,7 +132,9 @@ The migration command and schema checks were verified with SQLite. The PostgreSQ
 
 ## Rule engine
 
-Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. `ImpossibleTravelRule` triggers strictly above 900 km/h with weight 40. `BruteForceRule` triggers at five consecutive failures or five distinct users from one IP, with weight 60. `NewDeviceAndCountryRule` triggers only when both signals are true, with weight 30. `HighRiskIPRule` triggers on a supplied high-risk IP match, with weight 40. `UnusualHourRule` triggers at a six-hour or greater deviation from a user's usual UTC login hours, with weight 15. These initial weights and thresholds are defaults; API integration and scoring are being added in Phase 4.
+Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. `ImpossibleTravelRule` triggers strictly above 900 km/h with weight 40. `BruteForceRule` triggers at five consecutive failures or five distinct users from one IP, with weight 60. `NewDeviceAndCountryRule` triggers only when both signals are true, with weight 30. `HighRiskIPRule` triggers on a supplied high-risk IP match, with weight 40. `UnusualHourRule` triggers at a six-hour or greater deviation from a user's usual UTC login hours, with weight 15.
+
+`aggregate_score` sums the weights of triggered rules and caps the score at 100. `score_to_decision` uses `ALLOW_MAX_SCORE` and `CHALLENGE_MAX_SCORE`, defaulting to `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. Both threshold values are validated at startup and can be overridden with environment variables. Login-event evaluation will be wired to the rule engine in Phase 4.8.
 
 ## API
 
@@ -172,7 +177,7 @@ Planned response example (the current stub instead always returns `allow`):
 }
 ```
 
-The clarified planned thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. Scoring is not implemented yet.
+The planned default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`; the scorer is implemented, but the endpoint is not yet wired to it.
 
 ## Model training
 
@@ -225,6 +230,7 @@ Current files:
 │   │   ├── base.py
 │   │   └── registry.py
 │   ├── redis_counters.py
+│   ├── scoring.py
 │   ├── schemas.py
 │   ├── settings.py
 │   └── user_agent.py
@@ -243,6 +249,7 @@ Current files:
     ├── test_redis_counters.py
     ├── test_repositories.py
     ├── test_rules.py
+    ├── test_scoring.py
     └── test_user_agent.py
 ```
 
