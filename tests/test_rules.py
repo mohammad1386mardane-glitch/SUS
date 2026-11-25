@@ -4,6 +4,7 @@ import pytest
 
 from app.rules import (
     BruteForceRule,
+    HighRiskIPRule,
     ImpossibleTravelRule,
     NewDeviceAndCountryRule,
     Rule,
@@ -126,3 +127,15 @@ def test_new_device_country_rule_requires_both_signals(
         )
         is expected
     )
+
+
+@pytest.mark.parametrize(
+    ("is_high_risk_ip", "expected"), [(False, False), (True, True)]
+)
+def test_high_risk_ip_rule_uses_reputation_signal(
+    is_high_risk_ip: bool,
+    expected: bool,
+) -> None:
+    rule = HighRiskIPRule()
+
+    assert rule.condition(RuleContext(is_high_risk_ip=is_high_risk_ip)) is expected

@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 4 — Rule Engine
 - **Latest tag:** `v0.3.0`
-- **Current step:** 4.5 — high-risk IP rule
+- **Current step:** 4.6 — unusual hour rule
 - **Blockers:** None. Live GeoIP lookups require a separately obtained GeoLite2 City database; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -66,6 +66,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Trigger impossible-travel risk only above 900 km/h and assign it weight 40. | The plan defines the strict speed threshold; the initial weight reaches the lowest challenge score while treating approximate GeoIP as a signal, not standalone proof for denial. |
 | 2026-11-25 | Trigger brute-force risk at five consecutive failures or five distinct users from one IP; assign weight 60. | The plan requires both brute-force and credential-stuffing signals; separate context counts allow either signal to trigger the rule. |
 | 2026-11-25 | Trigger the new-login rule only when both device and country are new; assign weight 30. | The plan describes the paired signals as a combination, so either signal alone remains insufficient to activate this rule. |
+| 2026-11-25 | Trigger the high-risk IP rule for a positive caller-supplied reputation match and assign weight 40. | Reputation matches are only as trustworthy as the caller's maintained list, so the rule contributes challenge-level risk without denying on its own. |
 | 2026-11-25 | Use the `user-agents` parser for browser/OS families and prioritize bot, tablet, mobile, then desktop device classes. | The feature output is stable and typed, while unknown user-agent strings remain representable as `Other`/`other`. |
 | 2026-11-25 | Calculate travel speed using Haversine distance (mean Earth radius 6371.0088 km), timezone-aware increasing timestamps, and return no speed when coordinates are unavailable. | These rules make the result reproducible and prevent invalid timestamps or missing GeoIP data from becoming misleading velocity values. |
 | 2026-11-25 | Treat a missing profile as empty history for device/country novelty; compare opaque device IDs exactly and country codes case-insensitively; missing country data is not a new-country signal. | New-account signals remain explicit without treating unavailable GeoIP as evidence of novelty. |
@@ -115,6 +116,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(rules): impossible travel rule` | Added the strict >900 km/h impossible-travel condition using the shared rule context. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 11 passed; Ruff, mypy, and pre-commit passed | Default weight 40 reaches the minimum challenge score; missing speed does not trigger. |
 | 2026-11-25 | Copilot SDK | `feat(rules): brute force / credential stuffing rule` | Added an OR condition for consecutive login failures and distinct users observed from one IP. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 16 passed; Ruff, mypy, and pre-commit passed | The initial threshold is five for either signal; default weight is 60. |
 | 2026-11-25 | Copilot SDK | `feat(rules): new device + new country rule` | Added the paired novelty rule requiring both new-device and new-country signals. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 20 passed; Ruff, mypy, and pre-commit passed | Either novelty signal alone does not trigger the rule; default weight is 30. |
+| 2026-11-25 | Copilot SDK | `feat(rules): high-risk IP rule` | Added the rule condition for a positive high-risk IP/CIDR reputation signal. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 22 passed; Ruff, mypy, and pre-commit passed | Default weight 40 reaches challenge range; the external reputation list remains caller-managed. |
 
 ## Open Questions
 
