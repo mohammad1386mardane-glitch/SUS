@@ -8,8 +8,8 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 2 — Data Layer
 - **Latest tag:** `v0.1.0`
-- **Current step:** 2.6 — add repository tests with a temporary database
-- **Blockers:** Phase 2 data-layer tests and docs remain; risk scoring remains planned for Phase 4.
+- **Current step:** 2.7 — update README for migrations, database, and Redis
+- **Blockers:** Phase 2 documentation remains; risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
 
@@ -77,6 +77,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(db): add user_profiles table` | Added the user profile ORM model and migration for usual countries, devices, and login hours. | `app/db/models.py`, `alembic/versions/`, `README.md`, `AGENTS.md`, `PLAN.md` | Migration upgrade/check, profile defaults/persistence, Ruff, and mypy passed | Profile arrays use JSON columns keyed by `user_id`. |
 | 2026-11-25 | Copilot SDK | `feat(repo): add repository layer` | Added typed login-event and user-profile repositories with insertion, lookup, pagination, and profile upsert operations. | `app/db/repositories.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Repository runtime checks, Ruff, and mypy passed | Repositories flush but leave commit/rollback to the caller's session transaction. |
 | 2026-11-25 | Copilot SDK | `feat(redis): add counters for velocity checks` | Added Redis connection setup and per-user failed-attempt counters with an atomic fixed-window TTL. | `app/redis_counters.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md`, `tests/test_redis_counters.py` | Redis counter tests: 4 passed; Ruff and mypy passed | User IDs are SHA-256 hashed in Redis keys; expiry is assigned on the first failure in a window. |
+| 2026-11-25 | Copilot SDK | `test(db): add repository tests` | Added temporary-SQLite migration/repository tests for events, profiles, pagination, and database constraints. | `tests/conftest.py`, `tests/test_repositories.py`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 16 passed; Ruff, mypy, pre-commit, and Alembic check passed | Each repository test applies the Alembic head to its own temporary database. |
 
 ## Open Questions
 
