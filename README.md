@@ -120,6 +120,8 @@ pre-commit run --all-files
 
 The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy. `pytest -q` is planned, but the test suite and pytest dependency have not been added yet.
 
+The editable installation and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
+
 ## Project structure
 
 Current files:

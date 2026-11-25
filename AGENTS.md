@@ -8,8 +8,8 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 0 — Setup and Documentation
 - **Latest tag:** None
-- **Current step:** 0.6 — synchronize setup documentation with the verified configuration
-- **Blockers:** Application implementation and tests are not present yet.
+- **Current step:** Phase 0 acceptance — documentation is synced; `pytest -q` is not yet runnable because tests and the pytest dependency have not been added.
+- **Blockers:** The application implementation and tests are not present yet.
 
 ## Coding Conventions
 
@@ -60,6 +60,7 @@ From the activated project virtual environment, install development tools with `
 | 2026-11-25 | Copilot SDK | `chore: init repository` | Committed the repository metadata and environment template for step 0.3. | `.gitignore`, `LICENSE`, `pyproject.toml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Static configuration checks passed | TOML parsed; required environment keys and ignore behavior validated. Application installation and tests are not available yet. |
 | 2026-11-25 | Copilot SDK | `chore: add project structure` | Added the planned application, test, script, and documentation directories. | `app/__init__.py`, `tests/.gitkeep`, `scripts/.gitkeep`, `docs/.gitkeep`, `README.md`, `AGENTS.md`, `PLAN.md` | Directory structure verified; no tests exist yet | The `app` package marker supports the package discovery configured in `pyproject.toml`. |
 | 2026-11-25 | Copilot SDK | `chore: add ruff, mypy and pre-commit` | Configured Ruff, mypy, and pre-commit for step 0.5. | `pyproject.toml`, `.pre-commit-config.yaml`, `README.md`, `AGENTS.md`, `PLAN.md` | `ruff check .`, `mypy app`, and `pre-commit run --all-files` passed | Pytest remains pending until tests and its dependency are introduced. |
+| 2026-11-25 | Copilot SDK | `docs: sync AGENTS.md and README.md with setup` | Synced setup documentation with the verified Python metadata, environment, structure, and quality tooling for step 0.6. | `README.md`, `AGENTS.md`, `PLAN.md` | Editable install and documented quality checks passed on Python 3.14 | Phase acceptance still needs `pytest -q`; no test suite exists yet. |
 
 ## Open Questions
 
