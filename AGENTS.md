@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 7 — Deployment and Hardening
 - **Latest tag:** `v0.5.0`
-- **Current step:** 7.6 — add dependency and secret scanning
+- **Current step:** 7.7 — verify README from a clean environment
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -168,6 +168,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `ci: add GitHub Actions (lint, type-check, tests)` | Added a read-only-permission workflow running Ruff, mypy, and pytest on Python 3.12 for pushes and pull requests targeting `main`. | `.github/workflows/ci.yml`, `README.md`, `AGENTS.md`, `PLAN.md` | Pre-commit passed; Ruff, formatting, mypy, and `pytest -q` passed locally on Python 3.14 (154 tests); hosted GitHub Actions not run locally | The workflow checks the project’s declared minimum Python version; integration tests use temporary SQLite and fakeredis. |
 | 2026-11-25 | Copilot SDK | `ci: add docker build and push` | Added pull-request Docker builds without publishing and multi-architecture GHCR publishing for semantic-version tags, including stable `latest`, provenance, and SBOM metadata. | `.github/workflows/publish-container.yml`, `README.md`, `AGENTS.md`, `PLAN.md` | Workflow YAML/trigger assertions and pre-commit passed; hosted GitHub Actions and Docker builds cannot be run locally | Publishing uses the repository-scoped `GITHUB_TOKEN`; the workflow requires a pushed `v*.*.*` tag to publish. |
 | 2026-11-25 | Copilot SDK | `docs: add OpenAPI examples and architecture diagram` | Added schema examples for public API models, a typed health response, an OpenAPI example regression test, and a Mermaid architecture diagram. | `app/schemas.py`, `app/main.py`, `tests/test_api.py`, `docs/architecture.md`, `README.md`, `AGENTS.md`, `PLAN.md` | Focused OpenAPI test passed; `pytest -q`: 155 passed; pre-commit passed | Examples use synthetic identifiers and reserved documentation IP addresses; optional GeoIP/model integrations are marked in the diagram. |
+| 2026-11-25 | Copilot SDK | `chore(security): add dependency audit and secrets scan` | Added scheduled, push, and pull-request dependency auditing with pip-audit and full-history Gitleaks scanning; updated checkout/setup-python action versions. | `.github/workflows/security.yml`, `.github/workflows/ci.yml`, `.github/workflows/publish-container.yml`, `README.md`, `AGENTS.md`, `PLAN.md` | Workflow YAML/pre-commit passed; `pip-audit --skip-editable` reported no known vulnerabilities; Gitleaks and hosted Actions not run locally | The workflow uses read-only repository permissions; organization-owned repositories may require a Gitleaks license secret. |
 
 ## Open Questions
 

@@ -258,6 +258,8 @@ The editable installation, API tests, and listed quality checks were verified wi
 
 GitHub Actions runs Ruff lint and formatting checks, mypy, and pytest on Python 3.12 for pushes and pull requests targeting `main`.
 
+The Security workflow runs `pip-audit` against the installed runtime and development dependencies and scans full Git history with Gitleaks on pushes, pull requests, and a weekly schedule. For repositories owned by a GitHub organization, configure `GITLEAKS_LICENSE` as a repository or organization secret if required by the Gitleaks Action.
+
 ## Project structure
 
 Current files:
