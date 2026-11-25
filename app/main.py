@@ -35,6 +35,7 @@ from app.schemas import (
     Decision,
     FeedbackRequest,
     FeedbackResponse,
+    HealthResponse,
     LoginEventRequest,
     LoginEventResponse,
     RiskHistoryEntry,
@@ -76,9 +77,9 @@ async def log_request(
     return response
 
 
-@app.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+@app.get("/health", response_model=HealthResponse)
+def health_check() -> HealthResponse:
+    return HealthResponse(status="ok")
 
 
 @app.get("/demo", include_in_schema=False)

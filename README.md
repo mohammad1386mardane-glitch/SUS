@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phases 4–6 are complete. Phase 7 is underway; the non-root Docker image, local Compose stack, Python 3.12 CI, and tagged container-publishing workflow are in place. Security checks and final verification remain. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phases 4–6 are complete. Phase 7 is underway; the non-root Docker image, local Compose stack, Python 3.12 CI, tagged container-publishing workflow, and API architecture diagram are in place. Security checks and final verification remain. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -82,6 +82,8 @@ docker compose up -d api
 ```
 
 The API listens only on `127.0.0.1:8000`; PostgreSQL and Redis are available only on the Compose network. Check `http://127.0.0.1:8000/health` and open `http://127.0.0.1:8000/docs` for the interactive OpenAPI UI. The image uses a non-root user and named volumes for the database, application data, and model artifacts. The Compose stack is intended for local use; use managed secrets and hardened network settings for deployment.
+
+OpenAPI includes example request and response payloads. The service and optional integrations are shown in [docs/architecture.md](./docs/architecture.md).
 
 Pushing a semantic-version tag such as `v1.2.3` builds and publishes `ghcr.io/<owner>/<repository>` for `linux/amd64` and `linux/arm64`. The workflow also publishes the `1.2` tag; stable version tags update `latest`. Pull requests that change the container build inputs build the image without publishing it.
 

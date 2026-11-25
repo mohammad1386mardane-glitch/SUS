@@ -71,6 +71,19 @@ def test_health_is_public(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_openapi_includes_examples_for_public_schemas() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+
+    assert schemas["LoginEventRequest"]["examples"][0]["ip"] == "203.0.113.42"
+    assert schemas["FeedbackRequest"]["examples"][0]["label"] == "real_attack"
+    assert schemas["RiskHistoryResponse"]["examples"][0]["events"][0]["decision"] in {
+        "allow",
+        "challenge",
+        "deny",
+    }
+    assert schemas["HealthResponse"]["examples"] == [{"status": "ok"}]
+
+
 def test_prometheus_endpoint_exposes_request_latency_and_decisions(
     client: TestClient,
     api_key: str,
