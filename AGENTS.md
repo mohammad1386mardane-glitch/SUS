@@ -55,7 +55,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Common Commands
 
-From the activated project virtual environment, install the project with `python -m pip install -e ".[dev]"`, apply database migrations with `alembic upgrade head`, start the API with `uvicorn app.main:app --reload`, and run `pytest -q`, `ruff check .`, `mypy app`, and `pre-commit run --all-files`.
+From the activated project virtual environment, install the project with `python -m pip install -e ".[dev]"`, apply database migrations with `alembic upgrade head`, start the API with `uvicorn app.main:app --reload`, and run `pytest --cov=app --cov-report=term-missing --cov-fail-under=80 -q`, `ruff check .`, `mypy app`, and `pre-commit run --all-files`.
 
 ## Agent Working Rules
 
@@ -172,6 +172,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `docs: verify README install and usage` | Refined setup, Docker Compose, API, privacy, and project-structure instructions; aligned the example response with the default rule-only behavior. | `README.md`, `app/schemas.py`, `tests/test_api.py`, `.github/workflows/publish-container.yml`, `AGENTS.md`, `PLAN.md` | Clean Python 3.14 install, Alembic migration, 155 tests, Ruff, mypy, pre-commit, model train/evaluate workflow, and live API endpoints passed; Docker/Compose and hosted workflows unavailable | Local Docker instructions and Python 3.12 CI could not be exercised because Docker and Python 3.12 are unavailable. |
 | 2026-11-25 | Copilot SDK | `fix(profile): merge trusted login updates atomically` | Replaced the profile read-modify-merge path with row-locked updates and conflict-safe profile creation for SQLite/PostgreSQL so concurrent trusted logins retain each other's learned signals. | `app/db/repositories.py`, `app/evaluation.py`, `tests/test_repositories.py`, `AGENTS.md` | Targeted API/repository tests passed (38); full `pytest -q`: 156 passed; pre-commit passed | SQLite behavior is covered locally; no live PostgreSQL server was available to exercise row-lock semantics. |
 | 2026-11-25 | Copilot SDK | `ci: gate container publishing on checks` | Made the CI workflow reusable and required its Python checks to pass before tag publishing or pull-request image builds. | `.github/workflows/ci.yml`, `.github/workflows/publish-container.yml`, `README.md`, `AGENTS.md` | Workflow structure assertions and pre-commit passed; hosted GitHub Actions unavailable locally | Tag pushes now build/publish only after the same reusable CI checks succeed. |
+| 2026-11-25 | Copilot SDK | `test: enforce 80% application coverage` | Added pytest-cov to the development dependencies and made CI/README test commands enforce the planned 80% line-coverage minimum. | `pyproject.toml`, `.github/workflows/ci.yml`, `README.md`, `AGENTS.md` | `pytest --cov=app --cov-report=term-missing --cov-fail-under=80 -q`: 156 passed, 94.08% coverage | Coverage measures application modules only; no coverage report file is committed. |
 
 ## Open Questions
 

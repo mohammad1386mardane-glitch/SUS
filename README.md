@@ -55,6 +55,8 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 # Edit .env and set a private, non-empty API_KEY.
+# Generate a random value if needed, then copy it into .env:
+python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
 Start the API locally with:
@@ -89,7 +91,7 @@ Pushing a semantic-version tag such as `v1.2.3` runs the Python checks first, th
 
 Settings are loaded from environment variables or a `.env` file using `pydantic-settings`. The template is [.env.example](./.env.example); copy it to `.env` for local configuration. The variables below are now recognized by the application:
 
-| Variable | Purpose | Status |
+| Variable | Purpose | Default or requirement |
 |---|---|---|
 | `DATABASE_URL` | SQLAlchemy database connection string | Default: local SQLite URL; PostgreSQL is supported with psycopg |
 | `REDIS_URL` | Redis connection string for optional counters and API-key rate limiting | Default: local Redis URL; Redis must be running when these features are used |
@@ -244,15 +246,15 @@ The generated dataset contains no real users, IP addresses, or credentials and i
 Run the API test suite and configured quality checks from the repository root:
 
 ```powershell
-pytest -q
+pytest --cov=app --cov-report=term-missing --cov-fail-under=80 -q
 ruff check .
 mypy app
 pre-commit run --all-files
 ```
 
-The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. GeoIP unit tests stub the database reader and do not require a GeoLite2 file; user-agent parsing tests use local parser data and make no network requests. Repository and API tests apply Alembic migrations to isolated temporary SQLite databases. Rule tests cover each condition's boundaries, score aggregation, decision thresholds, history windows, authentication, and API responses. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
+The development extra installs pytest-cov and the test dependencies. The configured coverage command enforces the project plan's 80% line-coverage target for `app/`. GeoIP unit tests stub the database reader and do not require a GeoLite2 file; user-agent parsing tests use local parser data and make no network requests. Repository and API tests apply Alembic migrations to isolated temporary SQLite databases. Rule tests cover each condition's boundaries, score aggregation, decision thresholds, history windows, authentication, and API responses. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
-The clean editable installation, Alembic migration, 155 tests, Ruff, mypy, pre-commit hooks, documented model workflow, and local API endpoints were verified with Python 3.14. Python 3.12 is the configured CI version but was not installed in the local environment.
+The clean editable installation, Alembic migration, documented model workflow, and local API endpoints were verified with Python 3.14. The final test suite passes 156 tests; Ruff, mypy, and pre-commit pass. Python 3.12 is the configured CI version but was not installed in the local environment.
 
 GitHub Actions runs Ruff lint and formatting checks, mypy, and pytest on Python 3.12 for pushes and pull requests targeting `main`.
 
