@@ -9,6 +9,7 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, HTTPException, Security, status
 from fastapi.responses import FileResponse
 from fastapi.security import APIKeyHeader
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.base import RequestResponseEndpoint
@@ -19,6 +20,13 @@ from app.db.models import LoginFeedback
 from app.db.repositories import LoginEventRepository, LoginFeedbackRepository
 from app.db.session import get_session
 from app.evaluation import evaluate_and_store
+from app.metrics import (
+    http_request_duration,
+    http_requests,
+    login_decisions,
+    registry,
+    route_template,
+)
 from app.schemas import (
     FeedbackRequest,
     FeedbackResponse,
@@ -40,16 +48,20 @@ async def log_request(
     request_id = uuid4().hex
     request.state.request_id = request_id
     started_at = perf_counter()
+    path = route_template(request)
     response = await call_next(request)
+    duration = perf_counter() - started_at
     response.headers["X-Request-ID"] = request_id
+    http_requests.labels(request.method, path, str(response.status_code)).inc()
+    http_request_duration.labels(request.method, path).observe(duration)
     request_logger.info(
         json.dumps(
             {
                 "request_id": request_id,
                 "method": request.method,
-                "path": request.url.path,
+                "path": path,
                 "status_code": response.status_code,
-                "duration_ms": round((perf_counter() - started_at) * 1000, 3),
+                "duration_ms": round(duration * 1000, 3),
             },
             separators=(",", ":"),
         )
@@ -65,6 +77,14 @@ def health_check() -> dict[str, str]:
 @app.get("/demo", include_in_schema=False)
 def demo_page() -> FileResponse:
     return FileResponse(Path(__file__).with_name("demo.html"))
+
+
+@app.get("/metrics", include_in_schema=False)
+def prometheus_metrics() -> Response:
+    return Response(
+        content=generate_latest(registry),
+        media_type=CONTENT_TYPE_LATEST,
+    )
 
 
 def require_api_key(
@@ -96,7 +116,9 @@ def evaluate_login_event(
     session: Annotated[Session, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> LoginEventResponse:
-    return evaluate_and_store(event, session, settings)
+    response = evaluate_and_store(event, session, settings)
+    login_decisions.labels(response.decision).inc()
+    return response
 
 
 @app.post(

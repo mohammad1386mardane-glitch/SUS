@@ -69,6 +69,32 @@ def test_health_is_public(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_prometheus_endpoint_exposes_request_latency_and_decisions(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+) -> None:
+    evaluation = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+    metrics = client.get("/metrics")
+
+    assert evaluation.status_code == 200
+    assert metrics.status_code == 200
+    assert metrics.headers["content-type"].startswith("text/plain")
+    assert (
+        'sus_http_requests_total{method="POST",path="/v1/login-events/evaluate",'
+        'status_code="200"}'
+    ) in metrics.text
+    assert (
+        'sus_http_request_duration_seconds_count{method="POST",'
+        'path="/v1/login-events/evaluate"}'
+    ) in metrics.text
+    assert 'sus_login_decisions_total{decision="allow"}' in metrics.text
+
+
 def test_demo_page_is_available(client: TestClient) -> None:
     response = client.get("/demo")
 

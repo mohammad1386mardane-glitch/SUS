@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 6 — Feedback and Monitoring
 - **Latest tag:** `v0.5.0`
-- **Current step:** 6.3 — add Prometheus metrics
+- **Current step:** 6.4 — add user risk-history endpoint
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -41,6 +41,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/ml_features.py` — normalized model feature schema and context conversion
 - `app/ml_training.py` — normal-only Isolation Forest training
 - `app/ml_evaluation.py` — labeled holdout metrics and model evaluation
+- `app/metrics.py` — privacy-safe Prometheus request and decision metrics
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
@@ -152,6 +153,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `docs: update README (train/evaluate) and AGENTS` | Documented the reproducible generation, training, separate holdout evaluation, versioned `MODEL_PATH` registry, opt-in 60/40 blending, and synthetic-metric limitations; marked Phase 5 complete. | `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 136 passed; Ruff, mypy, and pre-commit passed; documented CLI workflow passed with separate data files (FPR 1.4%, precision 85.4%, recall 41%, ROC-AUC 80.9%) | Metrics are only representative of the deterministic synthetic distribution and do not establish real-world performance. |
 | 2026-11-25 | Copilot SDK | `feat(api): add POST /v1/feedback` | Added authenticated feedback submission for evaluated events with validated `real_attack` / `false_positive` labels, persistent event IDs, and one-feedback-per-event conflict handling. | `app/main.py`, `app/schemas.py`, `app/db/models.py`, `app/db/repositories.py`, `app/evaluation.py`, `alembic/versions/91f74b2c3ad1_add_login_feedback.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_repositories.py -q`: 25 passed; Ruff, mypy, and pre-commit passed | Feedback is append-once per event; duplicate submission returns `409`. |
 | 2026-11-25 | Copilot SDK | `feat(profile): update user profile on trusted logins` | Learn unique device IDs, available country codes, and UTC login hours only after successful low-risk allowed evaluations. | `app/evaluation.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_features.py tests/test_repositories.py -q`: 50 passed; Ruff, mypy, and pre-commit passed | Failed and higher-risk evaluations do not expand profile baselines; an allowed first device-and-country signal can be learned after success. |
+| 2026-11-25 | Copilot SDK | `feat(metrics): add Prometheus metrics` | Exposed `/metrics` with HTTP request counts, request-duration histograms, and login decision counts; normalized paths to route templates in metrics and request logs. | `app/metrics.py`, `app/main.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py -q`: 22 passed; Ruff, mypy, and pre-commit passed | `/metrics` is public and emits no API keys or user identifiers; the Prometheus client was added as a runtime dependency and to the isolated mypy environment. |
 
 ## Open Questions
 
