@@ -9,14 +9,22 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, HTTPException, Security, status
 from fastapi.responses import FileResponse
 from fastapi.security import APIKeyHeader
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.db.models import LoginFeedback
+from app.db.repositories import LoginEventRepository, LoginFeedbackRepository
 from app.db.session import get_session
 from app.evaluation import evaluate_and_store
-from app.schemas import LoginEventRequest, LoginEventResponse
+from app.schemas import (
+    FeedbackRequest,
+    FeedbackResponse,
+    LoginEventRequest,
+    LoginEventResponse,
+)
 from app.settings import Settings, get_settings
 
 app = FastAPI(title="Suspicious Login Detection API")
@@ -89,3 +97,45 @@ def evaluate_login_event(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> LoginEventResponse:
     return evaluate_and_store(event, session, settings)
+
+
+@app.post(
+    "/v1/feedback",
+    response_model=FeedbackResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_key)],
+)
+def submit_feedback(
+    feedback: FeedbackRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> FeedbackResponse:
+    event_repository = LoginEventRepository(session)
+    login_event = event_repository.get_by_event_id(feedback.event_id)
+    if login_event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Login event not found",
+        )
+
+    feedback_repository = LoginFeedbackRepository(session)
+    if feedback_repository.get_for_login_event(login_event.id) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Feedback has already been submitted for this event",
+        )
+
+    try:
+        feedback_repository.add(
+            LoginFeedback(login_event_id=login_event.id, label=feedback.label)
+        )
+        session.commit()
+    except IntegrityError as error:
+        session.rollback()
+        if feedback_repository.get_for_login_event(login_event.id) is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Feedback has already been submitted for this event",
+            ) from error
+        raise
+
+    return FeedbackResponse(event_id=feedback.event_id, label=feedback.label)

@@ -222,7 +222,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 
 | # | Commit | Description | Status |
 |---|---|---|---|
-| 6.1 | `feat(api): add POST /v1/feedback` | Label: "real attack" / "false positive" | ⬜ |
+| 6.1 | `feat(api): add POST /v1/feedback` | Label: "real attack" / "false positive" | ✅ |
 | 6.2 | `feat(profile): update user profile on trusted logins` | Update profile after a confirmed login | ⬜ |
 | 6.3 | `feat(metrics): add Prometheus metrics` | Request count, latency, decision distribution | ⬜ |
 | 6.4 | `feat(api): add GET /v1/users/{id}/risk-history` | User risk history | ⬜ |

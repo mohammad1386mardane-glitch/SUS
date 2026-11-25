@@ -111,8 +111,9 @@ def evaluate_and_store(
         if ml_result.is_anomaly:
             reasons.append("ml_anomaly")
     decision = score_to_decision(score, settings)
+    event_id = f"evt_{uuid4().hex}"
     response = LoginEventResponse(
-        event_id=f"evt_{uuid4().hex}",
+        event_id=event_id,
         risk_score=score,
         decision=decision,
         reasons=reasons,
@@ -121,6 +122,7 @@ def evaluate_and_store(
     geo = _geo_to_json(current_location)
     event_repository.add(
         LoginEvent(
+            event_id=event_id,
             user_id=event.user_id,
             ip=event_ip,
             geo=geo,

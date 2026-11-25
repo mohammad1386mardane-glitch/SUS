@@ -6,9 +6,9 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Current Status
 
-- **Current phase:** Phase 5 — Machine Learning Model (complete)
+- **Current phase:** Phase 6 — Feedback and Monitoring
 - **Latest tag:** `v0.5.0`
-- **Current step:** Phase 5 complete; next planned: Phase 6.1 — add feedback endpoint
+- **Current step:** 6.2 — update user profile on trusted logins
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -25,6 +25,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/` — FastAPI service, settings, database session, and ORM models
 - `app/db/models.py` — SQLAlchemy models for stored login data
 - `app/db/repositories.py` — transaction-aware data-access classes
+- `app/db/models.py` — persisted login events, feedback, and user profiles
 - `app/redis_counters.py` — Redis-backed failed-attempt counters
 - `app/geoip.py` — GeoLite2 IP-to-location lookup
 - `app/evaluation.py` — rule context construction, scoring, and event persistence
@@ -149,6 +150,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(ml): add evaluation script` | Added shared strict CSV loading, holdout precision/recall/ROC-AUC/false-positive metrics, and an evaluation CLI; added suspicious feature combinations that remain below individual rule thresholds. | `app/ml_data.py`, `app/ml_training.py`, `app/ml_inference.py`, `app/ml_evaluation.py`, `scripts/evaluate.py`, `tests/test_ml_evaluation.py`, `tests/test_ml_data.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 53 selected tests passed; Ruff and mypy passed; generation, training, and evaluation CLIs passed; holdout FPR 1.4%, precision 83.7%, recall 36%, ROC-AUC 85.3% | Holdout used separate seeded synthetic data; metrics are illustrative and do not establish real-world performance. |
 | 2026-11-25 | Copilot SDK | `test(ml): add model smoke tests` | Added a real-model API smoke test that trains a versioned artifact, enables ML inference, and verifies the blended API response stays in range. | `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 42 API, inference, and scoring tests passed; Ruff, mypy, and pre-commit passed | Test trains a temporary synthetic model and exercises registry-backed inference end to end without changing the default rule-only API configuration. |
 | 2026-11-25 | Copilot SDK | `docs: update README (train/evaluate) and AGENTS` | Documented the reproducible generation, training, separate holdout evaluation, versioned `MODEL_PATH` registry, opt-in 60/40 blending, and synthetic-metric limitations; marked Phase 5 complete. | `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 136 passed; Ruff, mypy, and pre-commit passed; documented CLI workflow passed with separate data files (FPR 1.4%, precision 85.4%, recall 41%, ROC-AUC 80.9%) | Metrics are only representative of the deterministic synthetic distribution and do not establish real-world performance. |
+| 2026-11-25 | Copilot SDK | `feat(api): add POST /v1/feedback` | Added authenticated feedback submission for evaluated events with validated `real_attack` / `false_positive` labels, persistent event IDs, and one-feedback-per-event conflict handling. | `app/main.py`, `app/schemas.py`, `app/db/models.py`, `app/db/repositories.py`, `app/evaluation.py`, `alembic/versions/91f74b2c3ad1_add_login_feedback.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_repositories.py -q`: 25 passed; Ruff, mypy, and pre-commit passed | Feedback is append-once per event; duplicate submission returns `409`. |
 
 ## Open Questions
 

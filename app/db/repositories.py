@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import LoginEvent, UserProfile
+from app.db.models import LoginEvent, LoginFeedback, UserProfile
 
 
 class LoginEventRepository:
@@ -17,6 +17,10 @@ class LoginEventRepository:
 
     def get_by_id(self, event_id: int) -> LoginEvent | None:
         return self.session.get(LoginEvent, event_id)
+
+    def get_by_event_id(self, event_id: str) -> LoginEvent | None:
+        statement = select(LoginEvent).where(LoginEvent.event_id == event_id)
+        return self.session.scalar(statement)
 
     def list_for_user(
         self,
@@ -93,3 +97,19 @@ class UserProfileRepository:
         saved_profile = self.session.merge(profile)
         self.session.flush()
         return saved_profile
+
+
+class LoginFeedbackRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_for_login_event(self, login_event_id: int) -> LoginFeedback | None:
+        statement = select(LoginFeedback).where(
+            LoginFeedback.login_event_id == login_event_id
+        )
+        return self.session.scalar(statement)
+
+    def add(self, feedback: LoginFeedback) -> LoginFeedback:
+        self.session.add(feedback)
+        self.session.flush()
+        return feedback

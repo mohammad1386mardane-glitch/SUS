@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, IPvAnyAddress, field_validator
 
 Decision = Literal["allow", "challenge", "deny"]
+FeedbackLabel = Literal["real_attack", "false_positive"]
 
 
 class LoginEventRequest(BaseModel):
@@ -27,3 +28,13 @@ class LoginEventResponse(BaseModel):
     risk_score: int = Field(ge=0, le=100)
     decision: Decision
     reasons: list[str]
+
+
+class FeedbackRequest(BaseModel):
+    event_id: str = Field(pattern=r"^evt_[0-9a-f]{32}$")
+    label: FeedbackLabel
+
+
+class FeedbackResponse(BaseModel):
+    event_id: str
+    label: FeedbackLabel

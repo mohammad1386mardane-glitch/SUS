@@ -156,10 +156,11 @@ Implemented and planned core endpoints:
 | `GET` | `/health` | Health check (`{"status":"ok"}`) | 1.1 — implemented |
 | `GET` | `/demo` | Local browser page for submitting test login events | 4.8 — implemented |
 | `POST` | `/v1/login-events/evaluate` | Evaluate and store a login event with risk score, decision, and reasons; requires `X-API-Key` | 1.4–1.5, 4.8 — implemented |
-| `POST` | `/v1/feedback` | Submit a feedback label | 6.1 |
+| `POST` | `/v1/feedback` | Label an evaluated event `real_attack` or `false_positive`; requires `X-API-Key`; one label per event | 6.1 — implemented |
 | `GET` | `/v1/users/{id}/risk-history` | Retrieve a user's risk history | 6.4 |
 
 Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health and demo pages are public; evaluation requests receive `401 Unauthorized` for a missing or incorrect key. Request timestamps must include a timezone. Apply the SQLite migration with `alembic upgrade head` before evaluating events. GeoIP lookup is disabled by default; enable it only after configuring a valid database path. Each evaluation is saved to `login_events`; user profiles are read but not automatically updated.
+Submit feedback using the `event_id` returned by login evaluation. The API accepts `real_attack` or `false_positive`, returns `404` for unknown events, and returns `409` if feedback already exists for that event.
 Each response includes a generated `X-Request-ID`; the server logs the method, path, status, duration, and request ID as a JSON object without logging request bodies or authentication headers.
 
 Request:

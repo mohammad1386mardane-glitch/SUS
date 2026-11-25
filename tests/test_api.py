@@ -10,8 +10,12 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy.orm import Session
 
-from app.db.models import LoginEvent, UserProfile
-from app.db.repositories import LoginEventRepository, UserProfileRepository
+from app.db.models import LoginEvent, LoginFeedback, UserProfile
+from app.db.repositories import (
+    LoginEventRepository,
+    LoginFeedbackRepository,
+    UserProfileRepository,
+)
 from app.db.session import get_session
 from app.geoip import GeoIPResult
 from app.main import app
@@ -106,6 +110,72 @@ def test_evaluate_returns_scored_response(
     assert response_data["risk_score"] == 0
     assert response_data["decision"] == "allow"
     assert response_data["reasons"] == []
+
+
+def test_feedback_persists_once_for_an_evaluated_event(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+) -> None:
+    evaluation = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+    event_id = evaluation.json()["event_id"]
+
+    feedback = client.post(
+        "/v1/feedback",
+        json={"event_id": event_id, "label": "real_attack"},
+        headers={"X-API-Key": api_key},
+    )
+
+    assert feedback.status_code == 201
+    assert feedback.json() == {"event_id": event_id, "label": "real_attack"}
+    stored_event = LoginEventRepository(db_session).get_by_event_id(event_id)
+    assert stored_event is not None
+    stored_feedback = LoginFeedbackRepository(db_session).get_for_login_event(
+        stored_event.id
+    )
+    assert isinstance(stored_feedback, LoginFeedback)
+    assert stored_feedback.label == "real_attack"
+
+    duplicate = client.post(
+        "/v1/feedback",
+        json={"event_id": event_id, "label": "false_positive"},
+        headers={"X-API-Key": api_key},
+    )
+
+    assert duplicate.status_code == 409
+
+
+def test_feedback_requires_api_key(client: TestClient) -> None:
+    response = client.post(
+        "/v1/feedback",
+        json={"event_id": f"evt_{'0' * 32}", "label": "false_positive"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_feedback_rejects_unknown_events_and_invalid_labels(
+    client: TestClient,
+    api_key: str,
+) -> None:
+    unknown_event = client.post(
+        "/v1/feedback",
+        json={"event_id": f"evt_{'0' * 32}", "label": "false_positive"},
+        headers={"X-API-Key": api_key},
+    )
+    invalid_label = client.post(
+        "/v1/feedback",
+        json={"event_id": f"evt_{'1' * 32}", "label": "maybe"},
+        headers={"X-API-Key": api_key},
+    )
+
+    assert unknown_event.status_code == 404
+    assert invalid_label.status_code == 422
 
 
 def test_evaluate_blends_ml_score_and_persists_anomaly_reason(
