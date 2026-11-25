@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sus}
+      POSTGRES_USER: ${POSTGRES_USER:-sus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      API_KEY: ${API_KEY:?Set API_KEY in .env}
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-sus}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-sus}"
+      REDIS_URL: redis://redis:6379/0
+      GEOIP_DB_PATH: /app/data/GeoLite2-City.mmdb
+      GEOIP_ENABLED: ${GEOIP_ENABLED:-false}
+      HIGH_RISK_IP_NETWORKS: "${HIGH_RISK_IP_NETWORKS:-[]}"
+      MODEL_PATH: /app/artifacts/model.joblib
+      ML_ENABLED: ${ML_ENABLED:-false}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-false}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      ALLOW_MAX_SCORE: ${ALLOW_MAX_SCORE:-39}
+      CHALLENGE_MAX_SCORE: ${CHALLENGE_MAX_SCORE:-78}
+      SHADOW_MODE: ${SHADOW_MODE:-true}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - app_data:/app/data
+      - model_data:/app/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  app_data:
+  model_data:
+  postgres_data:
+  redis_data:

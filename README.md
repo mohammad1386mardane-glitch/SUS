@@ -70,7 +70,18 @@ Configuration names and safe local defaults are listed in [.env.example](./.env.
 
 ### Docker installation
 
-The non-root multi-stage image is defined in `Dockerfile`. The local Compose stack and complete Docker run instructions are being added in Phase 7.2.
+Install Docker Desktop with Docker Compose v2, then create the local environment file and set private API/PostgreSQL passwords:
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Edit .env and set API_KEY and a URL-safe POSTGRES_PASSWORD.
+docker compose build
+docker compose up -d postgres redis
+docker compose run --rm api alembic upgrade head
+docker compose up -d api
+```
+
+The API listens only on `127.0.0.1:8000`; PostgreSQL and Redis are available only on the Compose network. Check `http://127.0.0.1:8000/health` and open `http://127.0.0.1:8000/docs` for the interactive OpenAPI UI. The image uses a non-root user and named volumes for the database, application data, and model artifacts. The Compose stack is intended for local use; use managed secrets and hardened network settings for deployment.
 
 ## Configuration
 
