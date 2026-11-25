@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phases 4–6 are complete. Phase 7 is underway; a non-root multi-stage Dockerfile is in place, with Compose, CI, security checks, and final verification remaining. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phases 4–6 are complete. Phase 7 is underway; the non-root Docker image, local Compose stack, and Python 3.12 CI workflow are in place. Container publishing, security checks, and final verification remain. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -34,7 +34,7 @@ Planned capabilities include:
 - Additional login behavior features
 - Further deployment and monitoring capabilities
 
-The health and metrics endpoints, authenticated login evaluation and feedback, paginated risk history, trusted-login profile learning, JSON request logging, event/profile/feedback persistence, optional Redis rate limiting, rule and model scoring, and model training/evaluation workflow are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. Docker deployment and later hardening remain planned.
+The health and metrics endpoints, authenticated login evaluation and feedback, paginated risk history, trusted-login profile learning, JSON request logging, event/profile/feedback persistence, optional Redis rate limiting, rule and model scoring, and model training/evaluation workflow are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. A local Docker Compose stack is available; publishing and deployment hardening remain planned.
 
 ## Prerequisites
 
@@ -251,6 +251,8 @@ pre-commit run --all-files
 The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. GeoIP unit tests stub the database reader and do not require a GeoLite2 file; user-agent parsing tests use local parser data and make no network requests. Repository and API tests apply Alembic migrations to isolated temporary SQLite databases. Rule tests cover each condition's boundaries, score aggregation, decision thresholds, history windows, authentication, and API responses. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
 The editable installation, API tests, and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
+
+GitHub Actions runs Ruff lint and formatting checks, mypy, and pytest on Python 3.12 for pushes and pull requests targeting `main`.
 
 ## Project structure
 
