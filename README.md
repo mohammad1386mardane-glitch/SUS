@@ -70,7 +70,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 
 ## Database
 
-The synchronous SQLAlchemy engine reads `DATABASE_URL` from the environment or `.env`. SQLite is the local default, and PostgreSQL is supported through psycopg. Alembic reads the same setting. The initial migration creates the `login_events` table.
+The synchronous SQLAlchemy engine reads `DATABASE_URL` from the environment or `.env`. SQLite is the local default, and PostgreSQL is supported through psycopg. Alembic reads the same setting. Migrations create the `login_events` and `user_profiles` tables.
 
 Once a migration revision exists, apply it from the repository root with:
 
@@ -78,7 +78,7 @@ Once a migration revision exists, apply it from the repository root with:
 alembic upgrade head
 ```
 
-The `login_events` table stores event details, optional JSON geographic data, and validated risk output. The user profile table is added in the next step.
+The `login_events` table stores event details, optional JSON geographic data, and validated risk output. Each `user_profiles` row stores a user's usual countries, devices, and login hours as JSON arrays.
 
 ## API
 
