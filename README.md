@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phases 0–6 are complete. Phase 7 is underway; the non-root Docker image, local Compose stack, Python 3.12 CI, tagged container-publishing workflow, OpenAPI examples, and architecture diagram are in place. Final release review remains. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phases 0–7 are complete and the `v1.0.0` release tag is prepared locally. CI, security scanning, and gated GHCR publishing workflows are configured. See [PLAN.md](./PLAN.md) for project status and [docs/architecture.md](./docs/architecture.md) for the system design.
 
 ## Overview
 
@@ -85,7 +85,7 @@ The API listens only on `127.0.0.1:8000`; PostgreSQL and Redis are available onl
 
 OpenAPI includes example request and response payloads. The service and optional integrations are shown in [docs/architecture.md](./docs/architecture.md).
 
-Pushing a semantic-version tag such as `v1.2.3` runs the Python checks first, then builds and publishes `ghcr.io/<owner>/<repository>` for `linux/amd64` and `linux/arm64` only if they pass. The workflow also publishes the `1.2` tag; stable version tags update `latest`. Pull requests that change the container build inputs run the same checks and build the image without publishing it.
+Pushing a semantic-version tag such as `v1.2.3` runs the Python checks first, then builds and publishes `ghcr.io/<owner>/<repository>` for `linux/amd64` and `linux/arm64` only if they pass. The workflow also publishes the `1.2` tag; stable version tags update `latest`. Pull requests that change the container build inputs run the same checks and build the image without publishing it. After configuring a GitHub remote, push the local release tag with `git push origin v1.0.0` to trigger the release workflow.
 
 ## Configuration
 

@@ -241,7 +241,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 7.5 | `docs: add OpenAPI examples and architecture diagram` | API docs | ✅ |
 | 7.6 | `chore(security): add dependency audit and secrets scan` | `pip-audit`, `gitleaks` | ✅ |
 | 7.7 | `docs: final README verification` | **The agent runs every README install step from scratch in a clean environment and confirms it works** | ✅ |
-| 7.8 | `docs: finalize AGENTS.md and release v1.0.0` | Final status, tag `v1.0.0` | ⬜ |
+| 7.8 | `docs: finalize AGENTS.md and release v1.0.0` | Final status, tag `v1.0.0` | ✅ |
 
 ---
 
