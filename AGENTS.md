@@ -6,10 +6,10 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Current Status
 
-- **Current phase:** Phase 4 — Rule Engine
-- **Latest tag:** `v0.3.0`
-- **Current step:** 4.10 — thresholds, shadow-mode documentation, and Phase 4 release
-- **Blockers:** None. Live GeoIP lookups require a separately obtained GeoLite2 City database; live PostgreSQL and Redis servers were not used for integration testing.
+- **Current phase:** Phase 5 — Machine Learning Model
+- **Latest tag:** `v0.4.0`
+- **Current step:** 5.1 — add synthetic data generator
+- **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
 
@@ -74,6 +74,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Sum triggered rule weights with a cap at 100; classify scores using configurable 39/78 upper bounds. | These defaults preserve the agreed 0–39 allow, 40–78 challenge, and 79–100 deny behavior while keeping the score bounded. |
 | 2026-11-25 | Build API rule context from persisted event/profile history; make GeoIP opt-in and configure reputation CIDRs through settings. | Local evaluation remains runnable without private external data, while enabled GeoIP and malformed config errors stay explicit. A five-minute IP window scopes credential-stuffing counts. |
 | 2026-11-25 | Use the `user-agents` parser for browser/OS families and prioritize bot, tablet, mobile, then desktop device classes. | The feature output is stable and typed, while unknown user-agent strings remain representable as `Other`/`other`. |
+| 2026-11-25 | Keep login enforcement outside this scoring API; `SHADOW_MODE` does not alter returned assessments. | The service returns risk recommendations but does not authenticate or block users, so enforcement remains the consuming authentication system's responsibility. |
 | 2026-11-25 | Calculate travel speed using Haversine distance (mean Earth radius 6371.0088 km), timezone-aware increasing timestamps, and return no speed when coordinates are unavailable. | These rules make the result reproducible and prevent invalid timestamps or missing GeoIP data from becoming misleading velocity values. |
 | 2026-11-25 | Treat a missing profile as empty history for device/country novelty; compare opaque device IDs exactly and country codes case-insensitively; missing country data is not a new-country signal. | New-account signals remain explicit without treating unavailable GeoIP as evidence of novelty. |
 | 2026-11-25 | Compare login-hour profiles in UTC and calculate distance to the nearest usual hour on a circular 24-hour clock. | The profile schema has no timezone field, so UTC provides a consistent basis for both observed login hours and feature evaluation. |
@@ -127,6 +128,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(scoring): aggregate rule scores to 0-100` | Added weighted aggregation capped at 100, configurable allow/challenge thresholds, and score-to-decision mapping. | `app/scoring.py`, `app/settings.py`, `.env.example`, `tests/test_scoring.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Scoring tests: 15 passed; Ruff, mypy, and pre-commit passed | Defaults preserve 39/78 boundary behavior; invalid or overlapping thresholds fail during settings validation. |
 | 2026-11-25 | Copilot SDK | `feat(api): return reasons list in response` | Integrated history-based rule evaluation and persistence, configured optional GeoIP/reputation sources, and added a same-origin local test page. | `app/evaluation.py`, `app/main.py`, `app/demo.html`, `app/db/repositories.py`, `app/settings.py`, `app/schemas.py`, `alembic/env.py`, `tests/conftest.py`, `tests/test_api.py`, `tests/test_repositories.py`, `tests/test_scoring.py`, `README.md`, `pyproject.toml`, `.env.example`, `AGENTS.md`, `PLAN.md` | `pytest`: 34 targeted tests passed; Ruff, mypy, pre-commit, and Pylance workspace diagnostics passed | Demo page keeps the API key only in page memory; HTTP evaluation requires an API key and a migrated database. |
 | 2026-11-25 | Copilot SDK | `test(rules): add rule tests and edge cases` | Added coverage for no-signal defaults, rule-weight bounds, credential-stuffing time windows, and successful-login reset behavior. | `tests/test_rules.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 111 passed; Ruff, mypy, pre-commit, and Pylance workspace diagnostics passed | Full suite includes database/API integration on isolated SQLite and rule-threshold boundaries. |
+| 2026-11-25 | Copilot SDK | `docs: update README (thresholds, SHADOW_MODE) and AGENTS` | Documented decision boundaries, configurable thresholds, recommendation-only behavior, shadow mode, and local UI testing. | `README.md`, `.env.example`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 111 passed; Ruff, mypy, pre-commit, and Pylance passed; editable install, migrations, API health, browser demo, and wheel contents verified | Browser demo returned four `allow` responses, then score 60 / `challenge` with the brute-force reason on the fifth failed login. |
 
 ## Open Questions
 

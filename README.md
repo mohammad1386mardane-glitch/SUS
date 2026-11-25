@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 4 rule-engine work is underway. Rule evaluation, capped weighted scoring, configurable thresholds, API integration, and a local test page are implemented. The full test suite is green; final threshold and shadow-mode documentation is next. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 4 rule-engine MVP is complete. The API evaluates explainable rules, returns capped scores and decisions, stores results, and includes a local test page. Phase 5 will add machine-learning scoring. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -75,9 +75,9 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `GEOIP_DB_PATH` | Path to the GeoLite2 City database used by the IP lookup | Default: `data/GeoLite2-City.mmdb`; the database file must be obtained separately |
 | `GEOIP_ENABLED` | Use GeoLite2 lookup during login evaluation | Default: `false`; set to `true` only after obtaining the database |
 | `HIGH_RISK_IP_NETWORKS` | JSON list of IPv4/IPv6 addresses and CIDRs for the high-risk rule | Default: `[]` |
-| `ALLOW_MAX_SCORE` | Highest score classified as `allow` | Default: `39` |
+| `ALLOW_MAX_SCORE` | Highest score classified as `allow` | Default: `39`; must be lower than `CHALLENGE_MAX_SCORE` |
 | `CHALLENGE_MAX_SCORE` | Highest score classified as `challenge` | Default: `78`; scores above this are `deny` |
-| `SHADOW_MODE` | Evaluate decisions without enforcing them | Default: `true`; enforcement behavior planned in Phase 4 |
+| `SHADOW_MODE` | Advisory marker for downstream enforcement | Default: `true`; the API returns the same score/decision in either mode and never blocks logins |
 | `MODEL_PATH` | Location of the trained model artifact | Default: `artifacts/model.joblib`; model support planned in Phase 5 |
 | `API_KEY` | API-key authentication secret for login evaluation | Required; when empty, evaluation requests return `503 Service Unavailable` |
 
@@ -139,6 +139,8 @@ Rules receive an immutable `RuleContext` containing precomputed login signals. E
 
 `aggregate_score` sums the weights of triggered rules and caps the score at 100. `score_to_decision` uses `ALLOW_MAX_SCORE` and `CHALLENGE_MAX_SCORE`, defaulting to `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. Both threshold values are validated at startup and can be overridden with environment variables. Login evaluation builds rule context from saved event history, user profiles, and configured GeoIP/reputation sources, then stores the evaluation result.
 
+`SHADOW_MODE=true` is the safe default for an authentication service integrating this API. This service always returns its calculated score, decision, and reasons; it does not itself block or authenticate logins. The setting does not change the response, and setting it to `false` alone does not add enforcement. A downstream authentication service must decide whether to act on the returned recommendation.
+
 ## API
 
 Implemented and planned core endpoints:
@@ -176,7 +178,7 @@ Request:
 }
 ```
 
-The response contains the weighted rule result. Default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`.
+The response contains the weighted rule result. Default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. These decisions are recommendations only; the API does not enforce them.
 
 ### Local test page
 
