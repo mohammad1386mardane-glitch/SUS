@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Setup is in progress. The Python project metadata and environment template now exist, but the API, runtime dependencies, and deployment files have not been created. The implementation sequence is tracked in [PLAN.md](./PLAN.md).
+> **Project status:** The FastAPI health endpoint is implemented. Login evaluation and the remaining planned features are still in progress; the implementation sequence is tracked in [PLAN.md](./PLAN.md).
 
 ## Overview
 
@@ -15,7 +15,7 @@ Planned capabilities include:
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-These features are not implemented yet.
+The health endpoint is implemented. The other capabilities are planned and not yet available.
 
 ## Prerequisites
 
@@ -31,7 +31,7 @@ Only Python is needed for the current skeleton. The service cannot be run yet.
 
 ### Manual installation
 
-The project targets Python 3.12 or newer. From the repository root, create and activate a virtual environment, then install the development tooling:
+The project targets Python 3.12 or newer. From the repository root, create and activate a virtual environment, then install the application and development dependencies:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -40,7 +40,11 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-The API and runtime dependencies are not implemented yet, so there is no service start command.
+Start the API locally with:
+
+```powershell
+uvicorn app.main:app --reload
+```
 
 Configuration names and safe local defaults are listed in [.env.example](./.env.example). Copy that file to `.env` and set a private `API_KEY` only when configuring a local environment. Never commit `.env` or real credentials.
 
@@ -65,16 +69,16 @@ Threshold settings are also planned to be configurable, but their environment va
 
 ## API
 
-No endpoints are implemented yet. Planned core endpoints:
+Implemented and planned core endpoints:
 
 | Method | Path | Purpose | Planned step |
 |---|---|---|---|
-| `GET` | `/health` | Health check | 1.1 |
+| `GET` | `/health` | Health check (`{"status":"ok"}`) | 1.1 — implemented |
 | `POST` | `/v1/login-events/evaluate` | Evaluate a login event | 1.4 |
 | `POST` | `/v1/feedback` | Submit a feedback label | 6.1 |
 | `GET` | `/v1/users/{id}/risk-history` | Retrieve a user's risk history | 6.4 |
 
-The example below records the target request and response shape from the plan. It is not callable until the API is implemented.
+The following request and response record the target shape from the plan. Login evaluation is not implemented yet.
 
 Request:
 
@@ -133,7 +137,8 @@ Current files:
 ├── .pre-commit-config.yaml
 ├── AGENTS.md
 ├── app/
-│   └── __init__.py
+│   ├── __init__.py
+│   └── main.py
 ├── docs/
 ├── LICENSE
 ├── PLAN.md
@@ -147,7 +152,7 @@ Current files:
 
 ## Troubleshooting
 
-- **Cannot start the API:** expected at this stage; application code and runtime dependencies are not present yet.
+- **Cannot start the API:** install the project with `python -m pip install -e ".[dev]"` and run `uvicorn app.main:app --reload` from the repository root.
 - **Docker Compose files not found:** Docker support is planned for Phase 7 and has not been added.
 - **Environment variable has no effect:** there is no settings implementation yet. Check the configuration table above for planned variables.
 - **A documented command fails:** the quality and model commands are plans, not verified commands. They will be checked when their implementation steps are reached.
