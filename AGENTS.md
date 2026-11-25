@@ -8,8 +8,8 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 2 — Data Layer
 - **Latest tag:** `v0.1.0`
-- **Current step:** 2.4 — add the repository layer
-- **Blockers:** Repositories and Redis counters remain in Phase 2; risk scoring remains planned for Phase 4.
+- **Current step:** 2.5 — add Redis counters for velocity checks
+- **Blockers:** Redis counters remain in Phase 2; risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
 
@@ -75,6 +75,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(db): add SQLAlchemy + Alembic setup` | Added synchronous SQLAlchemy engine/session helpers and Alembic migration configuration using `DATABASE_URL`. | `app/db/`, `alembic/`, `alembic.ini`, `pyproject.toml`, `README.md`, `AGENTS.md`, `PLAN.md`, `.env.example` | SQLite connection, Alembic connection, Ruff, and mypy passed | SQLite remains the local default; psycopg is installed for PostgreSQL URLs. |
 | 2026-11-25 | Copilot SDK | `feat(db): add login_events table` | Added the login event ORM model and initial Alembic migration, including score/decision constraints and a user-timestamp index. | `app/db/models.py`, `alembic/env.py`, `alembic/versions/`, `README.md`, `AGENTS.md`, `PLAN.md` | Migration upgrade/check, valid insert, score constraint, Ruff, and mypy passed | Geo data and reasons use JSON columns; event timestamps are timezone-aware. |
 | 2026-11-25 | Copilot SDK | `feat(db): add user_profiles table` | Added the user profile ORM model and migration for usual countries, devices, and login hours. | `app/db/models.py`, `alembic/versions/`, `README.md`, `AGENTS.md`, `PLAN.md` | Migration upgrade/check, profile defaults/persistence, Ruff, and mypy passed | Profile arrays use JSON columns keyed by `user_id`. |
+| 2026-11-25 | Copilot SDK | `feat(repo): add repository layer` | Added typed login-event and user-profile repositories with insertion, lookup, pagination, and profile upsert operations. | `app/db/repositories.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Repository runtime checks, Ruff, and mypy passed | Repositories flush but leave commit/rollback to the caller's session transaction. |
 
 ## Open Questions
 

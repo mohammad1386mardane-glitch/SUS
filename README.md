@@ -80,6 +80,8 @@ alembic upgrade head
 
 The `login_events` table stores event details, optional JSON geographic data, and validated risk output. Each `user_profiles` row stores a user's usual countries, devices, and login hours as JSON arrays.
 
+`LoginEventRepository` provides event insertion, lookup, and paginated per-user history; `UserProfileRepository` loads and saves profiles. Repository methods flush changes, while the caller owns the session transaction and commit.
+
 ## API
 
 Implemented and planned core endpoints:
