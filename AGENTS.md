@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 3 — Feature Engineering
 - **Latest tag:** `v0.2.0`
-- **Current step:** 3.8 — test each feature
+- **Current step:** 3.9 — update GeoIP setup documentation
 - **Blockers:** GeoLite2 lookups require a locally obtained City database at `GEOIP_DB_PATH`; setup instructions are planned for step 3.9. Risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
@@ -104,6 +104,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(features): add time-of-day deviation` | Added UTC-normalized comparison with usual login hours using nearest circular 24-hour distance. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Feature tests: 21 passed; Ruff, mypy, and Pylance diagnostics pass | Empty histories return no deviation; naive timestamps and hours outside 0–23 are rejected. |
 | 2026-11-25 | Copilot SDK | `feat(features): add failed-attempt velocity` | Added atomic Redis sorted-set recording and rolling counts for the prior 1, 5, and 60 minutes, with hashed user keys and one-hour cleanup. | `app/redis_counters.py`, `tests/test_redis_counters.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Redis counter tests: 8 passed; Ruff, mypy, and Pylance diagnostics pass | Boundaries are inclusive; duplicate failures at the same timestamp are preserved as distinct events. |
 | 2026-11-25 | Copilot SDK | `feat(features): add IP reputation (VPN/Tor/proxy list)` | Added IPv4/IPv6 IP and CIDR membership checks against caller-supplied high-risk networks. | `app/ip_reputation.py`, `tests/test_ip_reputation.py`, `README.md`, `AGENTS.md`, `PLAN.md` | IP reputation tests: 4 passed; Ruff, mypy, and Pylance diagnostics pass | No external or built-in reputation list is bundled; list lifecycle remains with the caller. |
+| 2026-11-25 | Copilot SDK | `test(features): add unit tests for each feature` | Expanded edge coverage for configured GeoLite2 paths, zero-distance travel, inclusive velocity-window cleanup/TTL, and the complete feature test matrix. | `tests/test_geoip.py`, `tests/test_features.py`, `tests/test_redis_counters.py`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 58 passed; Ruff, mypy, and pre-commit passed | Feature tests cover GeoIP, user agents, travel speed, profile comparisons, time deviation, Redis rolling counts, and IP/CIDR reputation. Pylance shows only the existing unused `event` warning in `app/main.py`. |
 
 ## Open Questions
 

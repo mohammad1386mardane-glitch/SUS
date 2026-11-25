@@ -73,6 +73,8 @@ def test_failed_attempt_velocity_counts_rolling_windows_inclusively(
     )
     key = next(redis_client.scan_iter(match="login:failed:velocity:*"))
     assert "user-one" not in key
+    assert redis_client.zcard(key) == 4
+    assert redis_client.ttl(key) > 0
 
 
 def test_failed_attempt_velocity_preserves_same_timestamp_events(

@@ -49,6 +49,20 @@ def test_required_travel_speed_takes_short_path_across_dateline() -> None:
     assert speed == pytest.approx(111.195, abs=0.01)
 
 
+def test_required_travel_speed_is_zero_for_the_same_location() -> None:
+    timestamp = datetime(2026, 1, 1, tzinfo=UTC)
+
+    assert (
+        required_travel_speed_kmh(
+            location(37.386, -122.0838),
+            location(37.386, -122.0838),
+            timestamp,
+            timestamp + timedelta(hours=1),
+        )
+        == 0
+    )
+
+
 def test_required_travel_speed_returns_none_without_coordinates() -> None:
     timestamp = datetime(2026, 1, 1, tzinfo=UTC)
 

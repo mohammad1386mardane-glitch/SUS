@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 import app.geoip as geoip
+from app.settings import Settings
 
 
 class FakeReader:
@@ -55,6 +56,27 @@ def test_lookup_ip_returns_city_record_and_closes_reader(
     assert readers[0].database_path == str(tmp_path / "GeoLite2-City.mmdb")
     assert readers[0].address == "203.0.113.5"
     assert readers[0].exit_info == (None, None, None)
+
+
+def test_lookup_ip_uses_configured_database_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "configured-city.mmdb"
+    readers: list[FakeReader] = []
+
+    def create_reader(path: str) -> FakeReader:
+        reader = FakeReader(path)
+        readers.append(reader)
+        return reader
+
+    monkeypatch.setattr(
+        geoip, "get_settings", lambda: Settings(geoip_db_path=database_path)
+    )
+    monkeypatch.setattr(geoip, "Reader", create_reader)
+
+    assert geoip.lookup_ip("203.0.113.5") is not None
+    assert readers[0].database_path == str(database_path)
 
 
 def test_lookup_ip_rejects_invalid_addresses_before_opening_database(
