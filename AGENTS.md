@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 7 — Deployment and Hardening
 - **Latest tag:** `v0.5.0`
-- **Current step:** 7.4 — add tagged Docker publishing
+- **Current step:** 7.5 — document OpenAPI examples and architecture
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -166,6 +166,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `chore(docker): add Dockerfile (multi-stage)` | Added a Python 3.12 slim multi-stage image, non-root runtime, writable data/model paths, health check, and build-context exclusions. | `Dockerfile`, `.dockerignore`, `README.md`, `AGENTS.md`, `PLAN.md` | Dockerfile/context reviewed; Docker build not run because Docker CLI is unavailable | The Compose stack and full container usage instructions are the next step. |
 | 2026-11-25 | Copilot SDK | `chore(docker): add docker-compose (api, postgres, redis)` | Added a local API/PostgreSQL/Redis stack with health checks, named storage, host-local API binding, and environment-provided credentials; documented startup and migration commands. | `compose.yaml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Compose YAML parse and service/binding assertions passed; pre-commit passed; Docker services not run because Docker CLI is unavailable | The Compose database password must be URL-safe because it is embedded in `DATABASE_URL`; the stack is local-development only. |
 | 2026-11-25 | Copilot SDK | `ci: add GitHub Actions (lint, type-check, tests)` | Added a read-only-permission workflow running Ruff, mypy, and pytest on Python 3.12 for pushes and pull requests targeting `main`. | `.github/workflows/ci.yml`, `README.md`, `AGENTS.md`, `PLAN.md` | Pre-commit passed; Ruff, formatting, mypy, and `pytest -q` passed locally on Python 3.14 (154 tests); hosted GitHub Actions not run locally | The workflow checks the project’s declared minimum Python version; integration tests use temporary SQLite and fakeredis. |
+| 2026-11-25 | Copilot SDK | `ci: add docker build and push` | Added pull-request Docker builds without publishing and multi-architecture GHCR publishing for semantic-version tags, including stable `latest`, provenance, and SBOM metadata. | `.github/workflows/publish-container.yml`, `README.md`, `AGENTS.md`, `PLAN.md` | Workflow YAML/trigger assertions and pre-commit passed; hosted GitHub Actions and Docker builds cannot be run locally | Publishing uses the repository-scoped `GITHUB_TOKEN`; the workflow requires a pushed `v*.*.*` tag to publish. |
 
 ## Open Questions
 

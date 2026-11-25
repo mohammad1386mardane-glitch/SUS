@@ -237,7 +237,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 7.1 | `chore(docker): add Dockerfile (multi-stage)` | Slim image | ✅ |
 | 7.2 | `chore(docker): add docker-compose (api, postgres, redis)` | Full local stack | ✅ |
 | 7.3 | `ci: add GitHub Actions (lint, type-check, tests)` | CI pipeline | ✅ |
-| 7.4 | `ci: add docker build and push` | Publish the image | ⬜ |
+| 7.4 | `ci: add docker build and push` | Publish the image | ✅ |
 | 7.5 | `docs: add OpenAPI examples and architecture diagram` | API docs | ⬜ |
 | 7.6 | `chore(security): add dependency audit and secrets scan` | `pip-audit`, `gitleaks` | ⬜ |
 | 7.7 | `docs: final README verification` | **The agent runs every README install step from scratch in a clean environment and confirms it works** | ⬜ |
