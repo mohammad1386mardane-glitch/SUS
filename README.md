@@ -1,18 +1,18 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phases 4–6 are complete. Phase 7 is underway; the non-root Docker image, local Compose stack, Python 3.12 CI, tagged container-publishing workflow, and API architecture diagram are in place. Security checks and final verification remain. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phases 0–6 are complete. Phase 7 is underway; the non-root Docker image, local Compose stack, Python 3.12 CI, tagged container-publishing workflow, OpenAPI examples, and architecture diagram are in place. Final release review remains. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
-The planned service evaluates login attempts and returns a risk score from 0 to 100, a decision (`allow`, `challenge`, or `deny`), and explanatory reasons. The design combines deterministic rules with an Isolation Forest anomaly-detection model.
+The service evaluates login attempts and returns a risk score from 0 to 100, a decision (`allow`, `challenge`, or `deny`), and explanatory reasons. It combines deterministic rules with an optional Isolation Forest anomaly-detection model.
 
-Planned capabilities include:
+Implemented capabilities include:
 
 - FastAPI login-event evaluation API
 - API-key authentication for protected API routes
 - JSON request logging with generated request IDs
 - SQLAlchemy event/profile tables and repositories (implemented)
-- Redis failed-attempt counters with TTL (implemented)
+- Redis failed-attempt counter helpers with TTL and rolling windows
 - MaxMind GeoLite2 IP lookup for country, city, and coordinates (implemented)
 - User-agent parsing for browser, OS, and device type (implemented)
 - Required travel-speed calculation between two located logins (implemented)
@@ -31,20 +31,16 @@ Planned capabilities include:
 - Prometheus request, latency, and decision metrics at `/metrics` (implemented)
 - Optional Redis-backed API-key rate limiting (implemented)
 - Authenticated feedback and paginated user risk-history endpoints (implemented)
-- Additional login behavior features
-- Further deployment and monitoring capabilities
-
-The health and metrics endpoints, authenticated login evaluation and feedback, paginated risk history, trusted-login profile learning, JSON request logging, event/profile/feedback persistence, optional Redis rate limiting, rule and model scoring, and model training/evaluation workflow are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. A local Docker Compose stack is available; publishing and deployment hardening remain planned.
+The health and metrics endpoints, authenticated login evaluation and feedback, paginated risk history, trusted-login profile learning, JSON request logging, event/profile/feedback persistence, optional Redis rate limiting, rule and model scoring, and model training/evaluation workflow are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. A local Docker Compose stack and tagged GHCR publishing workflow are available. Production deployment, monitoring, retention, and enforcement policies remain the operator's responsibility.
 
 ## Prerequisites
 
-For the planned application:
+For local development:
 
-- Python 3.12
-- Docker and Docker Compose for the planned containerized deployment
-- PostgreSQL and Redis for the planned production-style local stack; SQLite is planned for development
+- Python 3.12 or newer
+- Docker Engine with Docker Compose v2 for the optional container stack
 
-Only Python is needed to run the API locally. Configure a non-empty `API_KEY` to use the login-evaluation endpoint. A local GeoLite2 City database is required for the standalone GeoIP helper and only when enabling GeoIP in login evaluation.
+Only Python is needed to run the API locally; SQLite is the local default. The Compose stack starts PostgreSQL and Redis. Configure a non-empty `API_KEY` to use protected endpoints. A local GeoLite2 City database is required only when enabling GeoIP in login evaluation.
 
 ## Installation
 
@@ -57,6 +53,8 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Edit .env and set a private, non-empty API_KEY.
 ```
 
 Start the API locally with:
@@ -66,11 +64,11 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Configuration names and safe local defaults are listed in [.env.example](./.env.example). Copy that file to `.env` and set a private `API_KEY` only when configuring a local environment. Never commit `.env` or real credentials.
+The `.env` file is ignored by Git. Never commit it or real credentials.
 
 ### Docker installation
 
-Install Docker Desktop with Docker Compose v2, then create the local environment file and set private API/PostgreSQL passwords:
+Install Docker Desktop with Docker Compose v2, then create the local environment file and set private API/PostgreSQL credentials:
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
@@ -81,7 +79,7 @@ docker compose run --rm api alembic upgrade head
 docker compose up -d api
 ```
 
-The API listens only on `127.0.0.1:8000`; PostgreSQL and Redis are available only on the Compose network. Check `http://127.0.0.1:8000/health` and open `http://127.0.0.1:8000/docs` for the interactive OpenAPI UI. The image uses a non-root user and named volumes for the database, application data, and model artifacts. The Compose stack is intended for local use; use managed secrets and hardened network settings for deployment.
+The API listens only on `127.0.0.1:8000`; PostgreSQL and Redis are available only on the Compose network. Use a URL-safe PostgreSQL password (letters, digits, hyphens, and underscores) because Compose embeds it in `DATABASE_URL`. Check `http://127.0.0.1:8000/health` and open `http://127.0.0.1:8000/docs` for the interactive OpenAPI UI. The image uses a non-root user and named volumes for the database, application data, and model artifacts. Stop the stack with `docker compose down`; this preserves named volumes. The Compose stack is intended for local use; use managed secrets and hardened network settings for deployment.
 
 OpenAPI includes example request and response payloads. The service and optional integrations are shown in [docs/architecture.md](./docs/architecture.md).
 
@@ -94,7 +92,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | Variable | Purpose | Status |
 |---|---|---|
 | `DATABASE_URL` | SQLAlchemy database connection string | Default: local SQLite URL; PostgreSQL is supported with psycopg |
-| `REDIS_URL` | Redis connection string for failed-attempt counters | Default: local Redis URL; Redis must be running to use the counters |
+| `REDIS_URL` | Redis connection string for optional counters and API-key rate limiting | Default: local Redis URL; Redis must be running when these features are used |
 | `GEOIP_DB_PATH` | Path to the GeoLite2 City database used by the IP lookup | Default: `data/GeoLite2-City.mmdb`; the database file must be obtained separately |
 | `GEOIP_ENABLED` | Use GeoLite2 lookup during login evaluation | Default: `false`; set to `true` only after obtaining the database |
 | `HIGH_RISK_IP_NETWORKS` | JSON list of IPv4/IPv6 addresses and CIDRs for the high-risk rule | Default: `[]` |
@@ -106,7 +104,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `RATE_LIMIT_ENABLED` | Enforce a shared Redis fixed-window limit per valid API key | Default: `false`; requires Redis when enabled |
 | `RATE_LIMIT_MAX_REQUESTS` | Maximum protected requests allowed per API key in one window | Default: `100`; must be at least `1` |
 | `RATE_LIMIT_WINDOW_SECONDS` | Fixed-window duration for API-key rate limits | Default: `60`; must be at least `1` |
-| `API_KEY` | API-key authentication secret for login evaluation | Required; when empty, evaluation requests return `503 Service Unavailable` |
+| `API_KEY` | API-key authentication secret for protected API routes | Required; when empty, protected requests return `503 Service Unavailable` |
 
 `API_KEY` is stored as a secret value and is not included in its normal string representation. Do not put a real key in source control.
 
@@ -170,9 +168,9 @@ Rules receive an immutable `RuleContext` containing precomputed login signals. E
 
 ## API
 
-Implemented and planned core endpoints:
+Implemented endpoints:
 
-| Method | Path | Purpose | Planned step |
+| Method | Path | Purpose | Plan step |
 |---|---|---|---|
 | `GET` | `/health` | Health check (`{"status":"ok"}`) | 1.1 — implemented |
 | `GET` | `/metrics` | Prometheus request count, latency, and login-decision metrics; no API key required | 6.3 — implemented |
@@ -213,14 +211,14 @@ Request:
 
 ```json
 {
-  "event_id": "evt_001",
-  "risk_score": 78,
-  "decision": "challenge",
-  "reasons": ["impossible_travel", "new_device"]
+  "event_id": "evt_0123456789abcdef0123456789abcdef",
+  "risk_score": 0,
+  "decision": "allow",
+  "reasons": []
 }
 ```
 
-The response contains the weighted rule result. Default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. These decisions are recommendations only; the API does not enforce them.
+The response contains the weighted rule result. Default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. These decisions are recommendations only; the API does not enforce them. The OpenAPI page includes example request and response schemas.
 
 ### Local test page
 
@@ -254,7 +252,7 @@ pre-commit run --all-files
 
 The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. GeoIP unit tests stub the database reader and do not require a GeoLite2 file; user-agent parsing tests use local parser data and make no network requests. Repository and API tests apply Alembic migrations to isolated temporary SQLite databases. Rule tests cover each condition's boundaries, score aggregation, decision thresholds, history windows, authentication, and API responses. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
-The editable installation, API tests, and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
+The clean editable installation, Alembic migration, 155 tests, Ruff, mypy, pre-commit hooks, documented model workflow, and local API endpoints were verified with Python 3.14. Python 3.12 is the configured CI version but was not installed in the local environment.
 
 GitHub Actions runs Ruff lint and formatting checks, mypy, and pytest on Python 3.12 for pushes and pull requests targeting `main`.
 
@@ -262,81 +260,42 @@ The Security workflow runs `pip-audit` against the installed runtime and develop
 
 ## Project structure
 
-Current files:
+Key files and folders:
 
 ```text
 .
+├── .github/workflows/
+│   ├── ci.yml
+│   ├── publish-container.yml
+│   └── security.yml
+├── .dockerignore
 ├── .env.example
 ├── .gitignore
 ├── .pre-commit-config.yaml
+├── Dockerfile
 ├── alembic.ini
 ├── alembic/
-│   ├── README
-│   ├── env.py
-│   ├── script.py.mako
-│   └── versions/
-├── AGENTS.md
+├── compose.yaml
 ├── app/
-│   ├── __init__.py
-│   ├── ml_data.py
-│   ├── ml_evaluation.py
-│   ├── ml_features.py
-│   ├── ml_inference.py
-│   ├── ml_training.py
-│   ├── model_registry.py
-│   ├── db/
-│   │   ├── base.py
-│   │   ├── models.py
-│   │   ├── repositories.py
-│   │   └── session.py
-│   ├── features.py
-│   ├── evaluation.py
-│   ├── demo.html
-│   ├── geoip.py
-│   ├── ip_reputation.py
-│   ├── main.py
-│   ├── rules/
-│   │   ├── __init__.py
-│   │   ├── base.py
-│   │   └── registry.py
-│   ├── redis_counters.py
-│   ├── scoring.py
-│   ├── schemas.py
-│   ├── settings.py
-│   └── user_agent.py
-├── docs/
-├── LICENSE
+├── docs/architecture.md
 ├── PLAN.md
 ├── README.md
 ├── pyproject.toml
 ├── scripts/
-│   ├── evaluate.py
-│   ├── generate_synthetic_data.py
-│   └── train.py
 └── tests/
-    ├── conftest.py
-    ├── test_api.py
-    ├── test_features.py
-    ├── test_geoip.py
-    ├── test_ip_reputation.py
-    ├── test_redis_counters.py
-    ├── test_repositories.py
-    ├── test_rules.py
-    ├── test_scoring.py
-    └── test_user_agent.py
 ```
 
-`app/` contains the service and data layer, `alembic/` database migrations, `tests/` API and data-layer tests, `scripts/` model and maintenance scripts, and `docs/` supplementary documentation.
+`app/` contains the service, database layer, rules, and model utilities; `alembic/` contains database migrations; `scripts/` contains the synthetic-data and model CLIs; and `tests/` contains API, feature, and data-layer tests.
 
 ## Troubleshooting
 
 - **Cannot start the API:** install the project with `python -m pip install -e ".[dev]"` and run `uvicorn app.main:app --reload` from the repository root.
-- **Docker Compose files not found:** Docker support is planned for Phase 7 and has not been added.
+- **`docker compose` is unavailable:** install or start Docker Desktop and confirm Docker Compose v2 is enabled.
 - **Evaluation requests return 503:** set a non-empty `API_KEY` in the environment or `.env`; the service fails closed when authentication is not configured.
 - **Evaluation requests fail with a database error:** run `alembic upgrade head` before starting the API.
-- **Redis connection errors:** start Redis at the configured `REDIS_URL` before using failed-attempt counters.
+- **Redis connection errors:** start Redis at the configured `REDIS_URL` before using standalone counter helpers or enabling API-key rate limiting. Rate limiting returns `503` rather than bypassing limits when Redis is unavailable.
 - **ML-enabled evaluation fails:** generate data and train a model, then check the versioned files and manifest under `MODEL_PATH`; leave `ML_ENABLED=false` for rule-only behavior. Use a separately generated labeled dataset with `scripts/evaluate.py` to inspect model metrics.
 
 ## Privacy and security
 
-The plan calls for API keys to come from environment configuration and never be logged. IP addresses and device IDs should be hashed or masked where possible, and retention and user-data deletion requirements should be addressed before production use. Deny decisions should initially run in shadow mode to measure false positives.
+API keys come from environment configuration and are not logged. Request logs exclude bodies and authentication headers, and risk-history responses omit IP addresses, device IDs, and user agents. The database does store those raw login-event fields; restrict database access and define encryption, retention, and deletion policies before production use. Decisions are recommendations only, and this API does not enforce `deny` responses.

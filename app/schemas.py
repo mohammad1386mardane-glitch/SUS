@@ -44,9 +44,9 @@ class LoginEventResponse(BaseModel):
             "examples": [
                 {
                     "event_id": "evt_0123456789abcdef0123456789abcdef",
-                    "risk_score": 40,
-                    "decision": "challenge",
-                    "reasons": ["new_device_and_country"],
+                    "risk_score": 0,
+                    "decision": "allow",
+                    "reasons": [],
                 }
             ]
         }
@@ -97,9 +97,9 @@ class RiskHistoryEntry(BaseModel):
                 {
                     "event_id": "evt_0123456789abcdef0123456789abcdef",
                     "timestamp": "2026-03-01T10:15:00Z",
-                    "risk_score": 40,
-                    "decision": "challenge",
-                    "reasons": ["new_device_and_country"],
+                    "risk_score": 0,
+                    "decision": "allow",
+                    "reasons": [],
                 }
             ]
         }
@@ -128,9 +128,9 @@ class RiskHistoryResponse(BaseModel):
                         {
                             "event_id": "evt_0123456789abcdef0123456789abcdef",
                             "timestamp": "2026-03-01T10:15:00Z",
-                            "risk_score": 40,
-                            "decision": "challenge",
-                            "reasons": ["new_device_and_country"],
+                            "risk_score": 0,
+                            "decision": "allow",
+                            "reasons": [],
                         }
                     ],
                     "limit": 20,

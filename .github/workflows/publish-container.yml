@@ -7,9 +7,13 @@ on:
     paths:
       - .dockerignore
       - Dockerfile
+      - README.md
       - compose.yaml
       - pyproject.toml
+      - alembic.ini
+      - alembic/**
       - app/**
+      - scripts/**
 
 permissions:
   contents: read

@@ -76,11 +76,11 @@ def test_openapi_includes_examples_for_public_schemas() -> None:
 
     assert schemas["LoginEventRequest"]["examples"][0]["ip"] == "203.0.113.42"
     assert schemas["FeedbackRequest"]["examples"][0]["label"] == "real_attack"
-    assert schemas["RiskHistoryResponse"]["examples"][0]["events"][0]["decision"] in {
-        "allow",
-        "challenge",
-        "deny",
-    }
+    assert schemas["LoginEventResponse"]["examples"][0]["risk_score"] == 0
+    assert (
+        schemas["RiskHistoryResponse"]["examples"][0]["events"][0]["decision"]
+        == "allow"
+    )
     assert schemas["HealthResponse"]["examples"] == [{"status": "ok"}]
 
 

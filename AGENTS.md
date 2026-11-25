@@ -8,8 +8,8 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 7 — Deployment and Hardening
 - **Latest tag:** `v0.5.0`
-- **Current step:** 7.7 — verify README from a clean environment
-- **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
+- **Current step:** 7.8 — final code review and release
+- **Blockers:** Docker CLI, Python 3.12, and a Git remote are unavailable locally, so container and hosted-workflow execution remain unverified. GeoIP lookups require a separately obtained GeoLite2 City database.
 
 ## Coding Conventions
 
@@ -169,6 +169,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `ci: add docker build and push` | Added pull-request Docker builds without publishing and multi-architecture GHCR publishing for semantic-version tags, including stable `latest`, provenance, and SBOM metadata. | `.github/workflows/publish-container.yml`, `README.md`, `AGENTS.md`, `PLAN.md` | Workflow YAML/trigger assertions and pre-commit passed; hosted GitHub Actions and Docker builds cannot be run locally | Publishing uses the repository-scoped `GITHUB_TOKEN`; the workflow requires a pushed `v*.*.*` tag to publish. |
 | 2026-11-25 | Copilot SDK | `docs: add OpenAPI examples and architecture diagram` | Added schema examples for public API models, a typed health response, an OpenAPI example regression test, and a Mermaid architecture diagram. | `app/schemas.py`, `app/main.py`, `tests/test_api.py`, `docs/architecture.md`, `README.md`, `AGENTS.md`, `PLAN.md` | Focused OpenAPI test passed; `pytest -q`: 155 passed; pre-commit passed | Examples use synthetic identifiers and reserved documentation IP addresses; optional GeoIP/model integrations are marked in the diagram. |
 | 2026-11-25 | Copilot SDK | `chore(security): add dependency audit and secrets scan` | Added scheduled, push, and pull-request dependency auditing with pip-audit and full-history Gitleaks scanning; updated checkout/setup-python action versions. | `.github/workflows/security.yml`, `.github/workflows/ci.yml`, `.github/workflows/publish-container.yml`, `README.md`, `AGENTS.md`, `PLAN.md` | Workflow YAML/pre-commit passed; `pip-audit --skip-editable` reported no known vulnerabilities; Gitleaks and hosted Actions not run locally | The workflow uses read-only repository permissions; organization-owned repositories may require a Gitleaks license secret. |
+| 2026-11-25 | Copilot SDK | `docs: verify README install and usage` | Refined setup, Docker Compose, API, privacy, and project-structure instructions; aligned the example response with the default rule-only behavior. | `README.md`, `app/schemas.py`, `tests/test_api.py`, `.github/workflows/publish-container.yml`, `AGENTS.md`, `PLAN.md` | Clean Python 3.14 install, Alembic migration, 155 tests, Ruff, mypy, pre-commit, model train/evaluate workflow, and live API endpoints passed; Docker/Compose and hosted workflows unavailable | Local Docker instructions and Python 3.12 CI could not be exercised because Docker and Python 3.12 are unavailable. |
 
 ## Open Questions
 
