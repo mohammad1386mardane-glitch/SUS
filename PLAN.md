@@ -191,7 +191,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 4.3 | `feat(rules): brute force / credential stuffing rule` | Consecutive failures, or one IP across many users | ✅ |
 | 4.4 | `feat(rules): new device + new country rule` | Combination of two signals | ✅ |
 | 4.5 | `feat(rules): high-risk IP rule` | Tor / VPN / proxy | ✅ |
-| 4.6 | `feat(rules): unusual hour rule` | Login at an atypical hour | ⬜ |
+| 4.6 | `feat(rules): unusual hour rule` | Login at an atypical hour | ✅ |
 | 4.7 | `feat(scoring): aggregate rule scores to 0-100` | Weighted sum capped at 100 | ⬜ |
 | 4.8 | `feat(api): return reasons list in response` | Return the reasons for the decision | ⬜ |
 | 4.9 | `test(rules): add rule tests and edge cases` | Boundary tests | ⬜ |

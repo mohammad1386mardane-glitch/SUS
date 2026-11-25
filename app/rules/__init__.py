@@ -4,6 +4,7 @@ from app.rules.high_risk_ip import HighRiskIPRule
 from app.rules.impossible_travel import ImpossibleTravelRule
 from app.rules.new_device_country import NewDeviceAndCountryRule
 from app.rules.registry import RuleRegistry
+from app.rules.unusual_hour import UnusualHourRule
 
 __all__ = [
     "BruteForceRule",
@@ -13,4 +14,5 @@ __all__ = [
     "Rule",
     "RuleContext",
     "RuleRegistry",
+    "UnusualHourRule",
 ]

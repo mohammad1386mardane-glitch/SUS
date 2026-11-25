@@ -10,6 +10,7 @@ from app.rules import (
     Rule,
     RuleContext,
     RuleRegistry,
+    UnusualHourRule,
 )
 
 
@@ -139,3 +140,19 @@ def test_high_risk_ip_rule_uses_reputation_signal(
     rule = HighRiskIPRule()
 
     assert rule.condition(RuleContext(is_high_risk_ip=is_high_risk_ip)) is expected
+
+
+@pytest.mark.parametrize(
+    ("time_deviation_hours", "expected"),
+    [(None, False), (5, False), (6, True), (12, True)],
+)
+def test_unusual_hour_rule_uses_deviation_threshold(
+    time_deviation_hours: int | None,
+    expected: bool,
+) -> None:
+    rule = UnusualHourRule()
+
+    assert (
+        rule.condition(RuleContext(time_deviation_hours=time_deviation_hours))
+        is expected
+    )
