@@ -2,7 +2,13 @@ from dataclasses import dataclass
 
 import pytest
 
-from app.rules import ImpossibleTravelRule, Rule, RuleContext, RuleRegistry
+from app.rules import (
+    BruteForceRule,
+    ImpossibleTravelRule,
+    Rule,
+    RuleContext,
+    RuleRegistry,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,3 +70,31 @@ def test_impossible_travel_rule_uses_strict_speed_threshold(
     rule = ImpossibleTravelRule()
 
     assert rule.condition(RuleContext(impossible_travel_speed_kmh=speed)) is expected
+
+
+@pytest.mark.parametrize(
+    ("consecutive_failures", "distinct_users_per_ip", "expected"),
+    [
+        (0, 0, False),
+        (4, 4, False),
+        (5, 0, True),
+        (0, 5, True),
+        (5, 5, True),
+    ],
+)
+def test_brute_force_rule_triggers_on_either_threshold(
+    consecutive_failures: int,
+    distinct_users_per_ip: int,
+    expected: bool,
+) -> None:
+    rule = BruteForceRule()
+
+    assert (
+        rule.condition(
+            RuleContext(
+                consecutive_failures=consecutive_failures,
+                distinct_users_per_ip=distinct_users_per_ip,
+            )
+        )
+        is expected
+    )

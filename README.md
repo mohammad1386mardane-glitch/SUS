@@ -129,7 +129,7 @@ The migration command and schema checks were verified with SQLite. The PostgreSQ
 
 ## Rule engine
 
-Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. `ImpossibleTravelRule` triggers strictly above 900 km/h and has a default weight of 40, enough to reach the `challenge` range on its own. Additional concrete rules and API integration are being added in Phase 4.
+Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. `ImpossibleTravelRule` triggers strictly above 900 km/h with weight 40. `BruteForceRule` triggers at five consecutive failures or five distinct users from one IP, with weight 60. These initial weights and thresholds are defaults; additional concrete rules and API integration are being added in Phase 4.
 
 ## API
 

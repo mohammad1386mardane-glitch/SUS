@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 4 — Rule Engine
 - **Latest tag:** `v0.3.0`
-- **Current step:** 4.3 — brute-force / credential-stuffing rule
+- **Current step:** 4.4 — new device + new country rule
 - **Blockers:** None. Live GeoIP lookups require a separately obtained GeoLite2 City database; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -64,6 +64,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Use MaxMind's `geoip2` reader with the configured GeoLite2 City database; return `None` for addresses without records and surface database/configuration errors. | Callers can distinguish an unlisted address from a broken or missing database without the lookup silently hiding operational failures. |
 | 2026-11-25 | Represent rule inputs as an immutable context and evaluate named, weighted rules in registration order. | Unique names keep reason identifiers unambiguous, and deterministic order makes rule outputs stable for API responses and tests. |
 | 2026-11-25 | Trigger impossible-travel risk only above 900 km/h and assign it weight 40. | The plan defines the strict speed threshold; the initial weight reaches the lowest challenge score while treating approximate GeoIP as a signal, not standalone proof for denial. |
+| 2026-11-25 | Trigger brute-force risk at five consecutive failures or five distinct users from one IP; assign weight 60. | The plan requires both brute-force and credential-stuffing signals; separate context counts allow either signal to trigger the rule. |
 | 2026-11-25 | Use the `user-agents` parser for browser/OS families and prioritize bot, tablet, mobile, then desktop device classes. | The feature output is stable and typed, while unknown user-agent strings remain representable as `Other`/`other`. |
 | 2026-11-25 | Calculate travel speed using Haversine distance (mean Earth radius 6371.0088 km), timezone-aware increasing timestamps, and return no speed when coordinates are unavailable. | These rules make the result reproducible and prevent invalid timestamps or missing GeoIP data from becoming misleading velocity values. |
 | 2026-11-25 | Treat a missing profile as empty history for device/country novelty; compare opaque device IDs exactly and country codes case-insensitively; missing country data is not a new-country signal. | New-account signals remain explicit without treating unavailable GeoIP as evidence of novelty. |
@@ -111,6 +112,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `docs: update README (GeoIP setup) and AGENTS` | Added official GeoLite2 City account, private configuration, GeoIP Update, local path, data-refresh, licensing, and accuracy guidance; synced Phase 3 status. | `README.md`, `.env.example`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 58 passed; Ruff, mypy, pre-commit, editable install, Alembic migration, and `/health` passed | GeoLite download was not exercised because no MaxMind account/license is configured; the database and credentials are not included. |
 | 2026-11-25 | Copilot SDK | `feat(rules): add rule base class and registry` | Added the immutable rule context, validated abstract rule base, and deterministic registry. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 7 passed; Ruff, mypy, and Pylance diagnostics passed | Registry rule names are unique; weights are integers in the 0–100 range. |
 | 2026-11-25 | Copilot SDK | `feat(rules): impossible travel rule` | Added the strict >900 km/h impossible-travel condition using the shared rule context. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 11 passed; Ruff, mypy, and pre-commit passed | Default weight 40 reaches the minimum challenge score; missing speed does not trigger. |
+| 2026-11-25 | Copilot SDK | `feat(rules): brute force / credential stuffing rule` | Added an OR condition for consecutive login failures and distinct users observed from one IP. | `app/rules/`, `tests/test_rules.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Rule tests: 16 passed; Ruff, mypy, and pre-commit passed | The initial threshold is five for either signal; default weight is 60. |
 
 ## Open Questions
 
