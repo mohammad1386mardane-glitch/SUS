@@ -17,6 +17,7 @@ Planned capabilities include:
 - User-agent parsing for browser, OS, and device type (implemented)
 - Required travel-speed calculation between two located logins (implemented)
 - New-device and new-country profile comparisons (implemented)
+- Profile learning from confirmed low-risk logins (implemented)
 - Time-of-day deviation from usual UTC login hours (implemented)
 - Rolling failed-attempt counts for 1, 5, and 60 minutes (implemented)
 - Membership checks against supplied high-risk IP/CIDR lists (implemented)
@@ -159,7 +160,7 @@ Implemented and planned core endpoints:
 | `POST` | `/v1/feedback` | Label an evaluated event `real_attack` or `false_positive`; requires `X-API-Key`; one label per event | 6.1 — implemented |
 | `GET` | `/v1/users/{id}/risk-history` | Retrieve a user's risk history | 6.4 |
 
-Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health and demo pages are public; evaluation requests receive `401 Unauthorized` for a missing or incorrect key. Request timestamps must include a timezone. Apply the SQLite migration with `alembic upgrade head` before evaluating events. GeoIP lookup is disabled by default; enable it only after configuring a valid database path. Each evaluation is saved to `login_events`; user profiles are read but not automatically updated.
+Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health and demo pages are public; evaluation requests receive `401 Unauthorized` for a missing or incorrect key. Request timestamps must include a timezone. Apply the SQLite migration with `alembic upgrade head` before evaluating events. GeoIP lookup is disabled by default; enable it only after configuring a valid database path. Each evaluation is saved to `login_events`. A successful `allow` evaluation updates the user's usual device, available country, and UTC login hour only when there is no model anomaly or risk reason other than the low-weight new-device-and-country signal; failed or riskier logins do not update the profile.
 Submit feedback using the `event_id` returned by login evaluation. The API accepts `real_attack` or `false_positive`, returns `404` for unknown events, and returns `409` if feedback already exists for that event.
 Each response includes a generated `X-Request-ID`; the server logs the method, path, status, duration, and request ID as a JSON object without logging request bodies or authentication headers.
 

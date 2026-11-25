@@ -178,6 +178,92 @@ def test_feedback_rejects_unknown_events_and_invalid_labels(
     assert invalid_label.status_code == 422
 
 
+def test_evaluate_updates_profile_after_trusted_login(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+) -> None:
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    profile = UserProfileRepository(db_session).get_by_user_id("u1")
+
+    assert response.status_code == 200
+    assert profile is not None
+    assert profile.usual_devices == ["d1"]
+    assert profile.usual_countries == []
+    assert profile.usual_hours == [12]
+
+
+def test_evaluate_updates_profile_country_for_allowed_new_device_and_country(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_lookup_ip(ip: object, *, db_path: Path | None = None) -> GeoIPResult:
+        assert str(ip) == "203.0.113.5"
+        return GeoIPResult("us", "Example", 0.0, 0.0)
+
+    monkeypatch.setattr("app.evaluation.lookup_ip", fake_lookup_ip)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        geoip_enabled=True,
+    )
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    profile = UserProfileRepository(db_session).get_by_user_id("u1")
+
+    assert response.status_code == 200
+    assert response.json()["decision"] == "allow"
+    assert response.json()["reasons"] == ["new_device_and_country"]
+    assert profile is not None
+    assert profile.usual_devices == ["d1"]
+    assert profile.usual_countries == ["US"]
+    assert profile.usual_hours == [12]
+
+
+def test_evaluate_does_not_update_profile_for_failed_or_high_risk_login(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+) -> None:
+    failed_event = {**login_event, "user_id": "failed-user", "success": False}
+    failed_response = client.post(
+        "/v1/login-events/evaluate",
+        json=failed_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        high_risk_ip_networks=["203.0.113.0/24"],
+    )
+    risky_event = {**login_event, "user_id": "risky-user"}
+    risky_response = client.post(
+        "/v1/login-events/evaluate",
+        json=risky_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert failed_response.status_code == 200
+    assert risky_response.status_code == 200
+    assert risky_response.json()["decision"] == "challenge"
+    assert UserProfileRepository(db_session).get_by_user_id("failed-user") is None
+    assert UserProfileRepository(db_session).get_by_user_id("risky-user") is None
+
+
 def test_evaluate_blends_ml_score_and_persists_anomaly_reason(
     client: TestClient,
     api_key: str,

@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 6 — Feedback and Monitoring
 - **Latest tag:** `v0.5.0`
-- **Current step:** 6.2 — update user profile on trusted logins
+- **Current step:** 6.3 — add Prometheus metrics
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -151,6 +151,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `test(ml): add model smoke tests` | Added a real-model API smoke test that trains a versioned artifact, enables ML inference, and verifies the blended API response stays in range. | `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 42 API, inference, and scoring tests passed; Ruff, mypy, and pre-commit passed | Test trains a temporary synthetic model and exercises registry-backed inference end to end without changing the default rule-only API configuration. |
 | 2026-11-25 | Copilot SDK | `docs: update README (train/evaluate) and AGENTS` | Documented the reproducible generation, training, separate holdout evaluation, versioned `MODEL_PATH` registry, opt-in 60/40 blending, and synthetic-metric limitations; marked Phase 5 complete. | `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 136 passed; Ruff, mypy, and pre-commit passed; documented CLI workflow passed with separate data files (FPR 1.4%, precision 85.4%, recall 41%, ROC-AUC 80.9%) | Metrics are only representative of the deterministic synthetic distribution and do not establish real-world performance. |
 | 2026-11-25 | Copilot SDK | `feat(api): add POST /v1/feedback` | Added authenticated feedback submission for evaluated events with validated `real_attack` / `false_positive` labels, persistent event IDs, and one-feedback-per-event conflict handling. | `app/main.py`, `app/schemas.py`, `app/db/models.py`, `app/db/repositories.py`, `app/evaluation.py`, `alembic/versions/91f74b2c3ad1_add_login_feedback.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_repositories.py -q`: 25 passed; Ruff, mypy, and pre-commit passed | Feedback is append-once per event; duplicate submission returns `409`. |
+| 2026-11-25 | Copilot SDK | `feat(profile): update user profile on trusted logins` | Learn unique device IDs, available country codes, and UTC login hours only after successful low-risk allowed evaluations. | `app/evaluation.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_features.py tests/test_repositories.py -q`: 50 passed; Ruff, mypy, and pre-commit passed | Failed and higher-risk evaluations do not expand profile baselines; an allowed first device-and-country signal can be learned after success. |
 
 ## Open Questions
 

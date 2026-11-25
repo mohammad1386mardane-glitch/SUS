@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.db.models import LoginEvent
+from app.db.models import LoginEvent, UserProfile
 from app.db.repositories import LoginEventRepository, UserProfileRepository
 from app.features import (
     detect_new_login_signals,
@@ -135,8 +135,52 @@ def evaluate_and_store(
             reasons=reasons,
         )
     )
+    if (
+        event.success
+        and decision == "allow"
+        and all(reason == "new_device_and_country" for reason in reasons)
+    ):
+        _update_trusted_profile(
+            profile_repository,
+            profile,
+            user_id=event.user_id,
+            device_id=event.device_id,
+            country=current_location.country if current_location is not None else None,
+            hour=event_timestamp.hour,
+        )
     session.commit()
     return response
+
+
+def _update_trusted_profile(
+    repository: UserProfileRepository,
+    profile: UserProfile | None,
+    *,
+    user_id: str,
+    device_id: str,
+    country: str | None,
+    hour: int,
+) -> None:
+    if profile is None:
+        profile = UserProfile(
+            user_id=user_id,
+            usual_countries=[],
+            usual_devices=[],
+            usual_hours=[],
+        )
+
+    if device_id not in profile.usual_devices:
+        profile.usual_devices = [*profile.usual_devices, device_id]
+
+    normalized_country = country.strip().upper() if country else None
+    known_countries = {item.strip().upper() for item in profile.usual_countries}
+    if normalized_country and normalized_country not in known_countries:
+        profile.usual_countries = [*profile.usual_countries, normalized_country]
+
+    if hour not in profile.usual_hours:
+        profile.usual_hours = [*profile.usual_hours, hour]
+
+    repository.save(profile)
 
 
 def _consecutive_failures(
