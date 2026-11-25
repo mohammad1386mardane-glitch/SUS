@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** The FastAPI health endpoint is implemented. Login evaluation and the remaining planned features are still in progress; the implementation sequence is tracked in [PLAN.md](./PLAN.md).
+> **Project status:** The FastAPI health endpoint and stub login evaluation endpoint are implemented. The evaluation endpoint requires API-key authentication; scoring and remaining planned features are still in progress. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -9,13 +9,14 @@ The planned service evaluates login attempts and returns a risk score from 0 to 
 Planned capabilities include:
 
 - FastAPI login-event evaluation API
-- API-key authentication and request-id structured logging
+- API-key authentication for login evaluation
+- JSON request logging with generated request IDs
 - Behavioral event storage and Redis velocity counters
 - GeoIP and login behavior features
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint is implemented. The other capabilities are planned and not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, and JSON request logging are implemented. The other capabilities are planned and not yet available.
 
 ## Prerequisites
 
@@ -25,7 +26,7 @@ For the planned application:
 - Docker and Docker Compose for the planned containerized deployment
 - PostgreSQL and Redis for the planned production-style local stack; SQLite is planned for development
 
-Only Python is needed for the current skeleton. The service cannot be run yet.
+Only Python is needed to run the API locally. Configure a non-empty `API_KEY` to use the login-evaluation endpoint.
 
 ## Installation
 
@@ -63,7 +64,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `GEOIP_DB_PATH` | Path to the GeoLite2 database | Default: `data/GeoLite2-City.mmdb`; GeoIP integration planned in Phase 3 |
 | `SHADOW_MODE` | Evaluate decisions without enforcing them | Default: `true`; enforcement behavior planned in Phase 4 |
 | `MODEL_PATH` | Location of the trained model artifact | Default: `artifacts/model.joblib`; model support planned in Phase 5 |
-| `API_KEY` | API-key authentication secret | Defaults to empty; API-key authentication is planned in step 1.5 |
+| `API_KEY` | API-key authentication secret for login evaluation | Required; when empty, evaluation requests return `503 Service Unavailable` |
 
 `API_KEY` is stored as a secret value and is not included in its normal string representation. Do not put a real key in source control.
 
@@ -74,11 +75,13 @@ Implemented and planned core endpoints:
 | Method | Path | Purpose | Planned step |
 |---|---|---|---|
 | `GET` | `/health` | Health check (`{"status":"ok"}`) | 1.1 — implemented |
-| `POST` | `/v1/login-events/evaluate` | Evaluate a login event | 1.4 |
+| `POST` | `/v1/login-events/evaluate` | Evaluate a login event (stub: always returns `allow`); requires `X-API-Key` | 1.4–1.5 — implemented |
 | `POST` | `/v1/feedback` | Submit a feedback label | 6.1 |
 | `GET` | `/v1/users/{id}/risk-history` | Retrieve a user's risk history | 6.4 |
 
-The login-event request and response schemas are defined. The evaluation endpoint is the next implementation step.
+The login-event request and response schemas are defined, and the evaluation endpoint currently returns a stub response.
+Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health endpoint remains public. Requests to the evaluation endpoint receive `401 Unauthorized` for a missing or incorrect key.
+Each response includes a generated `X-Request-ID`; the server logs the method, path, status, duration, and request ID as a JSON object without logging request bodies or authentication headers.
 
 Request:
 
@@ -93,7 +96,9 @@ Request:
 }
 ```
 
-Example response:
+The stub response always allows the event; risk evaluation and reasons are not implemented yet.
+
+Planned response example (the current stub instead always returns `allow`):
 
 ```json
 {
@@ -104,9 +109,7 @@ Example response:
 }
 ```
 
-The response example is illustrative until the endpoint is implemented.
-
-The clarified default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`, so this example is consistent. These are planned defaults; scoring is not implemented yet.
+The clarified planned thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. Scoring is not implemented yet.
 
 ## Model training
 
@@ -114,17 +117,18 @@ Model training and evaluation are planned for Phase 5. The training script is pl
 
 ## Tests and quality checks
 
-Run the configured quality checks from the repository root:
+Run the API test suite and configured quality checks from the repository root:
 
 ```powershell
+pytest -q
 ruff check .
 mypy app
 pre-commit run --all-files
 ```
 
-The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy. `pytest -q` is planned, but the test suite and pytest dependency have not been added yet.
+The development extra installs pytest and `httpx2`, the transport required by Starlette's TestClient. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
-The editable installation and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
+The editable installation, API tests, and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
 
 ## Project structure
 
@@ -139,6 +143,7 @@ Current files:
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
+│   ├── schemas.py
 │   └── settings.py
 ├── docs/
 ├── LICENSE
@@ -147,16 +152,17 @@ Current files:
 ├── pyproject.toml
 ├── scripts/
 └── tests/
+    └── test_api.py
 ```
 
-`app/` will contain the service, `tests/` automated tests, `scripts/` model and maintenance scripts, and `docs/` supplementary documentation.
+`app/` contains the service, `tests/` the API tests, `scripts/` model and maintenance scripts, and `docs/` supplementary documentation.
 
 ## Troubleshooting
 
 - **Cannot start the API:** install the project with `python -m pip install -e ".[dev]"` and run `uvicorn app.main:app --reload` from the repository root.
 - **Docker Compose files not found:** Docker support is planned for Phase 7 and has not been added.
-- **Environment variable has no effect:** there is no settings implementation yet. Check the configuration table above for planned variables.
-- **A documented command fails:** the quality and model commands are plans, not verified commands. They will be checked when their implementation steps are reached.
+- **Evaluation requests return 503:** set a non-empty `API_KEY` in the environment or `.env`; the service fails closed when authentication is not configured.
+- **Model commands are unavailable:** training and evaluation scripts are planned for Phase 5 and have not been added.
 
 ## Privacy and security
 

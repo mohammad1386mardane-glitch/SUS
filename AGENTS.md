@@ -7,9 +7,9 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 ## Current Status
 
 - **Current phase:** Phase 1 — Core API
-- **Latest tag:** None
-- **Current step:** 1.4 — add the login-event evaluation endpoint
-- **Blockers:** Login evaluation, settings, and API tests are not implemented yet. Phase 0's pytest-based release check remains deferred until the test suite is added.
+- **Latest tag:** `v0.1.0`
+- **Current step:** 2.1 — add SQLAlchemy and Alembic setup
+- **Blockers:** Risk scoring remains planned for Phase 4; Phase 1's API tests and quality checks pass.
 
 ## Coding Conventions
 
@@ -30,7 +30,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Common Commands
 
-From the activated project virtual environment, install the project with `python -m pip install -e ".[dev]"`, start the API with `uvicorn app.main:app --reload`, and run `ruff check .`, `mypy app`, and `pre-commit run --all-files`. `pytest -q` remains pending until test dependencies and tests are added.
+From the activated project virtual environment, install the project with `python -m pip install -e ".[dev]"`, start the API with `uvicorn app.main:app --reload`, and run `pytest -q`, `ruff check .`, `mypy app`, and `pre-commit run --all-files`.
 
 ## Agent Working Rules
 
@@ -46,6 +46,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Use the stack and high-level architecture specified in `PLAN.md` (FastAPI, PostgreSQL/SQLite, Redis, scikit-learn). | This is the project plan's proposed baseline; details remain subject to the planned implementation steps. |
 | 2026-11-25 | Set default decisions to `0–39 allow`, `40–78 challenge`, and `79–100 deny`. | The user chose to preserve the plan's example where a score of 78 is `challenge`; these ranges resolve the conflicting earlier defaults. |
 | 2026-11-25 | Use the MIT license and `API_KEY` as the planned API-key environment variable. | The license is a permissive baseline; `API_KEY` gives the previously unnamed setting an explicit placeholder without adding a credential. |
+| 2026-11-25 | Require a configured API key for login evaluation, compare keys with `compare_digest`, and keep `/health` public. | Authentication fails closed with `503` when `API_KEY` is unset, preventing an unconfigured service from accidentally accepting evaluations. |
 
 ## Work Log
 
@@ -64,6 +65,11 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(api): bootstrap FastAPI app` | Added the FastAPI application and `GET /health` for step 1.1. | `app/main.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `README.md`, `AGENTS.md`, `PLAN.md` | HTTP health check, Ruff, mypy, and pre-commit passed | Added FastAPI to the isolated mypy hook environment; phase 0 tag remains deferred pending tests. |
 | 2026-11-25 | Copilot SDK | `feat(config): add settings via env vars` | Added typed settings from environment variables and `.env` for step 1.2. | `app/settings.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Settings defaults, `.env` parsing, environment overrides, boolean parsing, secret masking, Ruff, mypy, and pre-commit passed | API keys use `SecretStr`; no real credentials are provided. |
 | 2026-11-25 | Copilot SDK | `feat(schemas): add login event request/response models` | Added validated Pydantic request and response schemas for login events. | `app/schemas.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Pending validation | Request IPs are parsed as IPv4 or IPv6; scores are bounded to 0–100. |
+| 2026-11-25 | Copilot SDK | `feat(api): secure and instrument login evaluation` | Added the login evaluation stub with API-key authentication and JSON request logging. | `app/main.py`, `app/settings.py`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 6 passed; Ruff, mypy, and pre-commit passed | Missing or invalid keys receive 401; missing server configuration fails closed with 503. |
+| 2026-11-25 | Copilot SDK | `feat(api): secure and instrument login evaluation` | Protected login evaluation with the configured `X-API-Key`; the health endpoint remains public. | `app/main.py`, `app/settings.py`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | Focused auth checks, Ruff, and mypy passed | Missing or invalid keys receive 401; missing server configuration fails closed with 503. |
+| 2026-11-25 | Copilot SDK | `feat(api): secure and instrument login evaluation` | Added JSON request logs and a generated `X-Request-ID` response header. | `app/main.py`, `README.md`, `AGENTS.md`, `PLAN.md` | API tests, Ruff, mypy, and pre-commit passed | Logs include request method, path, status, duration, and request ID; bodies and credentials are excluded. |
+| 2026-11-25 | Copilot SDK | `feat(api): secure and instrument login evaluation` | Added API tests for public health, API-key behavior, event validation, stub responses, and JSON request logs. | `tests/test_api.py`, `pyproject.toml`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 6 passed; Ruff, mypy, and pre-commit passed | Added `pytest` and `httpx2` to the development dependencies for Starlette's TestClient. |
+| 2026-11-25 | Copilot SDK | `feat(api): secure and instrument login evaluation` | Updated setup, authentication, logging, API, test, and project-status documentation to match the implementation. | `README.md`, `AGENTS.md`, `PLAN.md` | Documentation reviewed against implementation | No separate documentation test is configured. |
 
 ## Open Questions
 

@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 
 from pydantic import SecretStr
@@ -17,3 +18,8 @@ class Settings(BaseSettings):
     geoip_db_path: Path = Path("data/GeoLite2-City.mmdb")
     model_path: Path = Path("artifacts/model.joblib")
     shadow_mode: bool = True
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
