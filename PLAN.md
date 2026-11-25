@@ -177,7 +177,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 3.4 | `feat(features): add new device / new country flags` | Compare with the user profile | ✅ |
 | 3.5 | `feat(features): add time-of-day deviation` | Distance from the user's usual hours | ✅ |
 | 3.6 | `feat(features): add failed-attempt velocity` | Failures in the last 1, 5, and 60 minutes | ✅ |
-| 3.7 | `feat(features): add IP reputation (VPN/Tor/proxy list)` | High-risk IP list | ⬜ |
+| 3.7 | `feat(features): add IP reputation (VPN/Tor/proxy list)` | High-risk IP list | ✅ |
 | 3.8 | `test(features): add unit tests for each feature` | One test set per feature | ⬜ |
 | 3.9 | `docs: update README (GeoIP setup) and AGENTS` | GeoLite2 download guide and `GEOIP_DB_PATH` | ⬜ |
 

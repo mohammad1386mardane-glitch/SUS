@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 3 — Feature Engineering
 - **Latest tag:** `v0.2.0`
-- **Current step:** 3.7 — add IP reputation list
+- **Current step:** 3.8 — test each feature
 - **Blockers:** GeoLite2 lookups require a locally obtained City database at `GEOIP_DB_PATH`; setup instructions are planned for step 3.9. Risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
@@ -29,11 +29,13 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/geoip.py` — GeoLite2 IP-to-location lookup
 - `app/user_agent.py` — browser, OS, and device classification
 - `app/features.py` — standalone login feature calculations
+- `app/ip_reputation.py` — supplied IPv4/IPv6 high-risk IP and CIDR matcher
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
 - `tests/test_user_agent.py` — user-agent parsing and device-class tests
 - `tests/test_features.py` — travel-speed and feature-calculation tests
+- `tests/test_ip_reputation.py` — high-risk IP/CIDR membership tests
 - `scripts/` — maintenance and model scripts
 - `docs/` — supplementary documentation
 - Root — project metadata, environment template, license, plan, and setup guides
@@ -64,6 +66,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Treat a missing profile as empty history for device/country novelty; compare opaque device IDs exactly and country codes case-insensitively; missing country data is not a new-country signal. | New-account signals remain explicit without treating unavailable GeoIP as evidence of novelty. |
 | 2026-11-25 | Compare login-hour profiles in UTC and calculate distance to the nearest usual hour on a circular 24-hour clock. | The profile schema has no timezone field, so UTC provides a consistent basis for both observed login hours and feature evaluation. |
 | 2026-11-25 | Store rolling failure events in hashed Redis sorted sets, use inclusive 1/5/60-minute score windows, and expire the set after one hour. | Sorted sets preserve event timestamps for genuine rolling counts, unlike the existing fixed-window counter; Lua keeps writes and multi-window reads atomic. |
+| 2026-11-25 | Make IP reputation matching accept a caller-supplied IPv4/IPv6 address/CIDR list and ship no reputation feed. | No trusted VPN/Tor/proxy source or update policy is specified, so the matcher stays reusable without embedding stale or unverified classifications. |
 
 ## Work Log
 
@@ -100,6 +103,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(features): add new device / new country flags` | Added profile comparisons for unseen device IDs and ISO country codes, including missing-profile and missing-country semantics. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Feature tests: 14 passed; Ruff, mypy, and Pylance diagnostics pass | Device IDs are opaque and match exactly; country codes are normalized case-insensitively. |
 | 2026-11-25 | Copilot SDK | `feat(features): add time-of-day deviation` | Added UTC-normalized comparison with usual login hours using nearest circular 24-hour distance. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Feature tests: 21 passed; Ruff, mypy, and Pylance diagnostics pass | Empty histories return no deviation; naive timestamps and hours outside 0–23 are rejected. |
 | 2026-11-25 | Copilot SDK | `feat(features): add failed-attempt velocity` | Added atomic Redis sorted-set recording and rolling counts for the prior 1, 5, and 60 minutes, with hashed user keys and one-hour cleanup. | `app/redis_counters.py`, `tests/test_redis_counters.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Redis counter tests: 8 passed; Ruff, mypy, and Pylance diagnostics pass | Boundaries are inclusive; duplicate failures at the same timestamp are preserved as distinct events. |
+| 2026-11-25 | Copilot SDK | `feat(features): add IP reputation (VPN/Tor/proxy list)` | Added IPv4/IPv6 IP and CIDR membership checks against caller-supplied high-risk networks. | `app/ip_reputation.py`, `tests/test_ip_reputation.py`, `README.md`, `AGENTS.md`, `PLAN.md` | IP reputation tests: 4 passed; Ruff, mypy, and Pylance diagnostics pass | No external or built-in reputation list is bundled; list lifecycle remains with the caller. |
 
 ## Open Questions
 

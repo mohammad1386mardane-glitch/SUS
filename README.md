@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 3 feature engineering is underway. Standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, new-device/new-country flags, and time-of-day deviation are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 3 feature engineering is underway. Standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, profile novelty/time features, rolling failure counts, and IP-list reputation checks are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -19,11 +19,12 @@ Planned capabilities include:
 - New-device and new-country profile comparisons (implemented)
 - Time-of-day deviation from usual UTC login hours (implemented)
 - Rolling failed-attempt counts for 1, 5, and 60 minutes (implemented)
+- Membership checks against supplied high-risk IP/CIDR lists (implemented)
 - Additional login behavior features
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, new-device/new-country flags, time-of-day deviation, and rolling failed-attempt counts are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, profile novelty/time features, rolling failed-attempt counts, and IP reputation list matching are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -103,7 +104,9 @@ The migration command and schema checks were verified with SQLite. The PostgreSQ
 
 `FailedAttemptCounter` stores per-user counters in Redis with a configurable fixed-window TTL. User identifiers are hashed in Redis keys; the counter sets the expiry atomically on the first failure in each window. Separate window lengths use separate counters. A Redis server must be available when these counters are used. The current login-evaluation endpoint does not yet call the repositories or counters.
 
-`FailedAttemptVelocity` separately records individual failures in per-user Redis sorted sets and atomically returns rolling counts for the inclusive last 1, 5, and 60 minutes. User IDs are hashed, old entries are pruned, and the set expires after one hour. The failure-recording method must be called by its consumer; the evaluation endpoint does not yet record attempts.
+`FailedAttemptVelocity` separately records individual failures in per-user Redis sorted sets and atomically returns rolling counts for the inclusive last 1, 5, and 60 minutes. User IDs are hashed; each write prunes entries older than one hour and refreshes the set's one-hour TTL. The failure-recording method must be called by its consumer; the evaluation endpoint does not yet record attempts.
+
+`HighRiskIPList` matches IPv4/IPv6 addresses against supplied individual IPs and CIDR networks. It ships no VPN, Tor, proxy, or other reputation feed; callers must provide and maintain a trusted list. Invalid addresses or list entries raise `ValueError`. This helper is not yet wired into the evaluation endpoint.
 
 ## API
 
@@ -192,6 +195,7 @@ Current files:
 │   │   └── session.py
 │   ├── features.py
 │   ├── geoip.py
+│   ├── ip_reputation.py
 │   ├── main.py
 │   ├── redis_counters.py
 │   ├── schemas.py
@@ -208,6 +212,7 @@ Current files:
     ├── test_api.py
     ├── test_features.py
     ├── test_geoip.py
+    ├── test_ip_reputation.py
     ├── test_redis_counters.py
     ├── test_repositories.py
     └── test_user_agent.py
