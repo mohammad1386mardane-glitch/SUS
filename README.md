@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 4 rule-engine MVP is complete. Phase 5 is underway: synthetic data generation, Isolation Forest training, a versioned registry, standalone inference, optional score blending, and model evaluation are implemented. Final documentation and release checks remain. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phases 4 and 5 are complete. Phase 6 feedback, profile learning, Prometheus metrics, risk history, and optional per-API-key rate limiting are implemented. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -9,7 +9,7 @@ The planned service evaluates login attempts and returns a risk score from 0 to 
 Planned capabilities include:
 
 - FastAPI login-event evaluation API
-- API-key authentication for login evaluation
+- API-key authentication for protected API routes
 - JSON request logging with generated request IDs
 - SQLAlchemy event/profile tables and repositories (implemented)
 - Redis failed-attempt counters with TTL (implemented)
@@ -30,11 +30,11 @@ Planned capabilities include:
 - Precision, recall, ROC-AUC, and false-positive evaluation (implemented)
 - Prometheus request, latency, and decision metrics at `/metrics` (implemented)
 - Optional Redis-backed API-key rate limiting (implemented)
+- Authenticated feedback and paginated user risk-history endpoints (implemented)
 - Additional login behavior features
-- Optional machine-learning anomaly scoring (implemented)
-- Feedback and monitoring endpoints
+- Further deployment and monitoring capabilities
 
-The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, synthetic training-data generator, Isolation Forest training script, versioned model registry, standalone inference service, optional API score blending, model evaluation script, and real-model API smoke test are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. Final documentation and other planned capabilities remain.
+The health and metrics endpoints, authenticated login evaluation and feedback, paginated risk history, trusted-login profile learning, JSON request logging, event/profile/feedback persistence, optional Redis rate limiting, rule and model scoring, and model training/evaluation workflow are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. Docker deployment and later hardening remain planned.
 
 ## Prerequisites
 
@@ -166,11 +166,22 @@ Implemented and planned core endpoints:
 | `POST` | `/v1/feedback` | Label an evaluated event `real_attack` or `false_positive`; requires `X-API-Key`; one label per event | 6.1 — implemented |
 | `GET` | `/v1/users/{user_id}/risk-history` | Paginated risk history without IP, device, or user-agent fields; requires `X-API-Key` | 6.4 — implemented |
 
-Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health and demo pages are public; evaluation requests receive `401 Unauthorized` for a missing or incorrect key. Request timestamps must include a timezone. Apply the SQLite migration with `alembic upgrade head` before evaluating events. GeoIP lookup is disabled by default; enable it only after configuring a valid database path. Each evaluation is saved to `login_events`. A successful `allow` evaluation updates the user's usual device, available country, and UTC login hour only when there is no model anomaly or risk reason other than the low-weight new-device-and-country signal; failed or riskier logins do not update the profile.
+Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health, demo, and metrics endpoints are public; evaluation, feedback, and risk-history requests require the key and receive `401 Unauthorized` when it is missing or incorrect. Request timestamps must include a timezone. Apply the SQLite migration with `alembic upgrade head` before using persisted endpoints. GeoIP lookup is disabled by default; enable it only after configuring a valid database path. Each evaluation is saved to `login_events`. A successful `allow` evaluation updates the user's usual device, available country, and UTC login hour only when there is no model anomaly or risk reason other than the low-weight new-device-and-country signal; failed or riskier logins do not update the profile.
 Set `RATE_LIMIT_ENABLED=true` to limit authenticated routes using the shared Redis backend. The fixed window allows the configured number of requests, returns `429 Too Many Requests` with `Retry-After` when exceeded, and returns `503 Service Unavailable` rather than bypassing limits if Redis is unavailable. Invalid API keys are rejected before consuming a rate-limit slot.
 Submit feedback using the `event_id` returned by login evaluation. The API accepts `real_attack` or `false_positive`, returns `404` for unknown events, and returns `409` if feedback already exists for that event.
 Risk history is ordered newest first and accepts `limit` (default 20, maximum 100) and `offset` (default 0); entries expose the event ID, timestamp, risk score, decision, and reasons, but omit login IPs and device identifiers.
 Each response includes a generated `X-Request-ID`; the server logs the method, matched route template, status, duration, and request ID as a JSON object without logging request bodies, user IDs in dynamic paths, or authentication headers. Prometheus metrics use the same route-template labels rather than raw paths, and decision metrics use only the bounded `allow`, `challenge`, and `deny` values.
+
+Feedback request:
+
+```json
+{
+  "event_id": "evt_0123456789abcdef0123456789abcdef",
+  "label": "false_positive"
+}
+```
+
+Risk-history requests may pass `limit` and `offset` as query parameters, for example `/v1/users/u_123/risk-history?limit=20&offset=0`.
 
 Request:
 

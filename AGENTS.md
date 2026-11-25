@@ -6,9 +6,9 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Current Status
 
-- **Current phase:** Phase 6 — Feedback and Monitoring
+- **Current phase:** Phase 6 — Feedback and Monitoring (complete)
 - **Latest tag:** `v0.5.0`
-- **Current step:** 6.6 — update README endpoints and AGENTS
+- **Current step:** Phase 6 complete; next planned: Phase 7.1 — add multi-stage Dockerfile
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -25,7 +25,6 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/` — FastAPI service, settings, database session, and ORM models
 - `app/db/models.py` — SQLAlchemy models for stored login data
 - `app/db/repositories.py` — transaction-aware data-access classes
-- `app/db/models.py` — persisted login events, feedback, and user profiles
 - `app/redis_counters.py` — Redis-backed failed-attempt counters
 - `app/geoip.py` — GeoLite2 IP-to-location lookup
 - `app/evaluation.py` — rule context construction, scoring, and event persistence
@@ -95,6 +94,10 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Map Isolation Forest decision margins to a bounded 0–100 anomaly score using a logistic transform calibrated to the median normal training margin. | A decision margin of zero maps to 50, while the median training-normal margin maps to 5; the output is a risk score, not a probability. |
 | 2026-11-25 | Keep ML scoring opt-in with `ML_ENABLED=false` by default and blend scores at 60% rules / 40% ML when enabled. | Existing API behavior remains unchanged until operators train a model and explicitly enable inference; missing enabled models fail explicitly. |
 | 2026-11-25 | Set the Isolation Forest contamination default to 2% and report false-positive rate alongside planned evaluation metrics. | On the deterministic 500-normal/100-suspicious synthetic holdout, seed 42 training produced 1.4% false positives; this is a synthetic-only check, not a real-world performance claim. |
+| 2026-11-25 | Persist public event IDs and accept one feedback label (`real_attack` or `false_positive`) per event. | The API returns the same ID used to locate the stored login event; duplicate feedback returns `409`, while historical events without IDs remain readable but cannot be labeled. |
+| 2026-11-25 | Update login profiles only for successful allow decisions without model anomalies or risk reasons other than the low-weight new-device-and-country signal. | This lets confirmed low-risk logins enrich the baseline without learning from failed, challenged, or otherwise flagged attempts. |
+| 2026-11-25 | Expose public Prometheus metrics with route-template HTTP labels and bounded decision labels; use route templates in request logs too. | Aggregated observability remains available without exposing dynamic user IDs or creating high-cardinality labels. |
+| 2026-11-25 | Make API-key fixed-window rate limiting opt-in and Redis-backed; hash API keys in Redis identifiers and fail closed on backend errors. | `RATE_LIMIT_ENABLED=false` preserves local operation without Redis; enabled limits are shared across API instances and return `429` with `Retry-After`. |
 
 ## Work Log
 
@@ -157,6 +160,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(metrics): add Prometheus metrics` | Exposed `/metrics` with HTTP request counts, request-duration histograms, and login decision counts; normalized paths to route templates in metrics and request logs. | `app/metrics.py`, `app/main.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py -q`: 22 passed; Ruff, mypy, and pre-commit passed | `/metrics` is public and emits no API keys or user identifiers; the Prometheus client was added as a runtime dependency and to the isolated mypy environment. |
 | 2026-11-25 | Copilot SDK | `feat(api): add GET /v1/users/{user_id}/risk-history` | Added API-key-protected, newest-first paginated risk history with bounded page size and a response that excludes IP and device identifiers; route-template logging and metrics avoid exposing user IDs. | `app/main.py`, `app/schemas.py`, `app/db/repositories.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_repositories.py -q`: 34 passed; authentication, pagination bounds, ordering, response fields, and user-ID redaction verified; Ruff, mypy, and pre-commit passed | Historical rows without public event IDs remain readable with `event_id: null`. |
 | 2026-11-25 | Copilot SDK | `feat(ratelimit): add rate limiting per API key` | Added opt-in Redis fixed-window limits for authenticated routes, with hashed key identifiers, `429`/`Retry-After`, and fail-closed `503` behavior on Redis errors. | `app/rate_limit.py`, `app/main.py`, `app/settings.py`, `.env.example`, `tests/test_rate_limit.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest tests/test_api.py tests/test_rate_limit.py tests/test_redis_counters.py tests/test_scoring.py -q`: 65 passed; Ruff, mypy, and pre-commit passed | Disabled by default to preserve local API operation without Redis; enabling requires a shared Redis backend. |
+| 2026-11-25 | Copilot SDK | `docs: update README endpoints and AGENTS` | Documented all Phase 6 endpoints, public `/metrics`, feedback/risk-history semantics, profile-learning rules, and optional Redis rate-limit configuration; marked Phase 6 complete. | `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 154 passed; Ruff, mypy, and pre-commit passed | Prometheus metrics use route-template labels; risk-history and logs do not expose user IDs or login IP/device data. |
 
 ## Open Questions
 
