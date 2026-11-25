@@ -78,7 +78,7 @@ Implemented and planned core endpoints:
 | `POST` | `/v1/feedback` | Submit a feedback label | 6.1 |
 | `GET` | `/v1/users/{id}/risk-history` | Retrieve a user's risk history | 6.4 |
 
-The following request and response record the target shape from the plan. Login evaluation is not implemented yet.
+The login-event request and response schemas are defined. The evaluation endpoint is the next implementation step.
 
 Request:
 
@@ -104,7 +104,7 @@ Example response:
 }
 ```
 
-The example is illustrative; the endpoint's real response will be documented after its schema is implemented.
+The response example is illustrative until the endpoint is implemented.
 
 The clarified default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`, so this example is consistent. These are planned defaults; scoring is not implemented yet.
 
