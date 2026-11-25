@@ -171,7 +171,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 
 | # | Commit | Description | Status |
 |---|---|---|---|
-| 3.1 | `feat(geo): integrate GeoLite2` | IP → country/city/lat/lon | ⬜ |
+| 3.1 | `feat(geo): integrate GeoLite2` | IP → country/city/lat/lon | ✅ |
 | 3.2 | `feat(features): add user-agent parsing` | Browser, OS, device type | ⬜ |
 | 3.3 | `feat(features): add impossible-travel feature` | Required speed between two logins (km/h) | ⬜ |
 | 3.4 | `feat(features): add new device / new country flags` | Compare with the user profile | ⬜ |

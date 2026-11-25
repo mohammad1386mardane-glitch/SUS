@@ -8,8 +8,8 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 3 — Feature Engineering
 - **Latest tag:** `v0.2.0`
-- **Current step:** 3.1 — integrate GeoLite2
-- **Blockers:** None for Phase 2. SQLite migrations and repository tests pass; live PostgreSQL connectivity was not exercised. Risk scoring remains planned for Phase 4.
+- **Current step:** 3.2 — add user-agent parsing
+- **Blockers:** GeoLite2 lookups require a locally obtained City database at `GEOIP_DB_PATH`; setup instructions are planned for step 3.9. Risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
 
@@ -26,8 +26,10 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/db/models.py` — SQLAlchemy models for stored login data
 - `app/db/repositories.py` — transaction-aware data-access classes
 - `app/redis_counters.py` — Redis-backed failed-attempt counters
+- `app/geoip.py` — GeoLite2 IP-to-location lookup
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
+- `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
 - `scripts/` — maintenance and model scripts
 - `docs/` — supplementary documentation
 - Root — project metadata, environment template, license, plan, and setup guides
@@ -52,6 +54,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Use the MIT license and `API_KEY` as the planned API-key environment variable. | The license is a permissive baseline; `API_KEY` gives the previously unnamed setting an explicit placeholder without adding a credential. |
 | 2026-11-25 | Require a configured API key for login evaluation, compare keys with `compare_digest`, and keep `/health` public. | Authentication fails closed with `503` when `API_KEY` is unset, preventing an unconfigured service from accidentally accepting evaluations. |
 | 2026-11-25 | Store Redis failed-attempt counters under hashed user IDs and set each fixed-window TTL atomically on its first increment. | This avoids exposing raw identifiers in Redis keys and keeps window expiry stable as additional failures arrive. |
+| 2026-11-25 | Use MaxMind's `geoip2` reader with the configured GeoLite2 City database; return `None` for addresses without records and surface database/configuration errors. | Callers can distinguish an unlisted address from a broken or missing database without the lookup silently hiding operational failures. |
 
 ## Work Log
 
@@ -82,6 +85,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(redis): add counters for velocity checks` | Added Redis connection setup and per-user failed-attempt counters with an atomic fixed-window TTL. | `app/redis_counters.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md`, `tests/test_redis_counters.py` | Redis counter tests: 4 passed; Ruff and mypy passed | User IDs are SHA-256 hashed in Redis keys; expiry is assigned on the first failure in a window. |
 | 2026-11-25 | Copilot SDK | `test(db): add repository tests` | Added temporary-SQLite migration/repository tests for events, profiles, pagination, and database constraints. | `tests/conftest.py`, `tests/test_repositories.py`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 16 passed; Ruff, mypy, pre-commit, and Alembic check passed | Each repository test applies the Alembic head to its own temporary database. |
 | 2026-11-25 | Copilot SDK | `docs: update README (migrations, DB/Redis) and AGENTS` | Documented the SQLite/PostgreSQL setup, Alembic migrations, repositories, Redis counter TTL, tests, and current Phase 2 status; normalized an import order flagged by Ruff. | `README.md`, `AGENTS.md`, `PLAN.md`, `tests/conftest.py` | Documentation reviewed against implementation; all checks passed | SQLite migrations and repository tests are verified; PostgreSQL connectivity has not been exercised. |
+| 2026-11-25 | Copilot SDK | `feat(geo): integrate GeoLite2` | Added a typed MaxMind City lookup using `GEOIP_DB_PATH`, with explicit handling for unlisted addresses and no silent database-error fallback; configured the isolated mypy hook and aligned Ruff versions, including import normalization. | `app/geoip.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `tests/test_geoip.py`, `tests/conftest.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 20 passed; Ruff, mypy, pre-commit, and Pylance diagnostics pass | GeoLite2 City database files are not included; README setup details are scheduled for step 3.9. |
 
 ## Open Questions
 

@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 2's SQLAlchemy models, migrations, repositories, and Redis failed-attempt counters are implemented. The login-evaluation endpoint remains a stub and does not yet write to the data layer; scoring and feature engineering remain planned. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 3 feature engineering is underway. The standalone GeoLite2 lookup is implemented; the login-evaluation endpoint remains a stub and does not yet use GeoIP or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -13,11 +13,12 @@ Planned capabilities include:
 - JSON request logging with generated request IDs
 - SQLAlchemy event/profile tables and repositories (implemented)
 - Redis failed-attempt counters with TTL (implemented)
-- GeoIP and login behavior features
+- MaxMind GeoLite2 IP lookup for country, city, and coordinates (implemented)
+- Additional login behavior features
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, and Redis counters are implemented. GeoIP, risk scoring, machine learning, and other planned capabilities are not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, and standalone GeoLite2 lookup are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -62,12 +63,16 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 |---|---|---|
 | `DATABASE_URL` | SQLAlchemy database connection string | Default: local SQLite URL; PostgreSQL is supported with psycopg |
 | `REDIS_URL` | Redis connection string for failed-attempt counters | Default: local Redis URL; Redis must be running to use the counters |
-| `GEOIP_DB_PATH` | Path to the GeoLite2 database | Default: `data/GeoLite2-City.mmdb`; GeoIP integration planned in Phase 3 |
+| `GEOIP_DB_PATH` | Path to the GeoLite2 City database used by the IP lookup | Default: `data/GeoLite2-City.mmdb`; the database file must be obtained separately |
 | `SHADOW_MODE` | Evaluate decisions without enforcing them | Default: `true`; enforcement behavior planned in Phase 4 |
 | `MODEL_PATH` | Location of the trained model artifact | Default: `artifacts/model.joblib`; model support planned in Phase 5 |
 | `API_KEY` | API-key authentication secret for login evaluation | Required; when empty, evaluation requests return `503 Service Unavailable` |
 
 `API_KEY` is stored as a secret value and is not included in its normal string representation. Do not put a real key in source control.
+
+## GeoIP lookup
+
+`lookup_ip` reads a MaxMind GeoLite2 City database at `GEOIP_DB_PATH` and returns the country ISO code, city name, latitude, and longitude. It returns `None` when the database has no record for the address. Invalid IP strings and missing or unreadable database files raise errors rather than silently producing a location. The `.mmdb` file is not included in the repository; the download and setup guide is scheduled for Phase 3.9. The login-evaluation endpoint does not yet call this helper.
 
 ## Database
 
@@ -141,7 +146,7 @@ mypy app
 pre-commit run --all-files
 ```
 
-The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. Repository tests apply Alembic migrations to isolated temporary SQLite databases. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
+The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. GeoIP unit tests stub the database reader and do not require a GeoLite2 file. Repository tests apply Alembic migrations to isolated temporary SQLite databases. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
 The editable installation, API tests, and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
 
@@ -168,6 +173,7 @@ Current files:
 │   │   ├── models.py
 │   │   ├── repositories.py
 │   │   └── session.py
+│   ├── geoip.py
 │   ├── main.py
 │   ├── redis_counters.py
 │   ├── schemas.py
@@ -181,6 +187,7 @@ Current files:
 └── tests/
     ├── conftest.py
     ├── test_api.py
+    ├── test_geoip.py
     ├── test_redis_counters.py
     └── test_repositories.py
 ```

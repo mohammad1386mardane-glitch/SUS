@@ -8,7 +8,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.2
+    rev: v0.17.6
     hooks:
       - id: ruff
         args: [--fix]
@@ -21,6 +21,7 @@ repos:
         args: [--config-file=pyproject.toml, app]
         additional_dependencies:
           - fastapi>=0.115
+          - geoip2>=4.8
           - pydantic-settings>=2.7
           - redis>=5.2
           - sqlalchemy>=2.0

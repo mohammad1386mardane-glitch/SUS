@@ -2,11 +2,11 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from alembic.config import Config
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from alembic import command
-from alembic.config import Config
 from app.db.session import create_db_engine, get_engine, get_session_factory
 from app.settings import get_settings
 

@@ -12,6 +12,7 @@ license = "MIT"
 dependencies = [
     "alembic>=1.14",
     "fastapi>=0.115",
+    "geoip2>=4.8",
     "pydantic-settings>=2.7",
     "psycopg[binary]>=3.2",
     "python-dotenv>=1.0",
