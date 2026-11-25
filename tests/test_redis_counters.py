@@ -1,7 +1,13 @@
+from datetime import UTC, datetime, timedelta
+
 import fakeredis
 import pytest
 
-from app.redis_counters import FailedAttemptCounter
+from app.redis_counters import (
+    FailedAttemptCounter,
+    FailedAttemptVelocity,
+    FailedAttemptVelocityCounts,
+)
 
 
 @pytest.fixture
@@ -41,3 +47,59 @@ def test_failed_attempt_count_rejects_invalid_input(
 
     with pytest.raises(ValueError):
         counter.increment(user_id, window_seconds=window_seconds)
+
+
+def test_failed_attempt_velocity_counts_rolling_windows_inclusively(
+    redis_client: fakeredis.FakeRedis,
+) -> None:
+    velocity = FailedAttemptVelocity(redis_client)
+    now = datetime(2026, 11, 25, 12, tzinfo=UTC)
+
+    for seconds_ago in (3601, 3600, 300, 60, 0):
+        velocity.record_failure(
+            "user-one",
+            occurred_at=now - timedelta(seconds=seconds_ago),
+        )
+
+    assert velocity.get_counts("user-one", now=now) == FailedAttemptVelocityCounts(
+        last_1_minute=2,
+        last_5_minutes=3,
+        last_60_minutes=4,
+    )
+    assert velocity.get_counts("user-two", now=now) == FailedAttemptVelocityCounts(
+        last_1_minute=0,
+        last_5_minutes=0,
+        last_60_minutes=0,
+    )
+    key = next(redis_client.scan_iter(match="login:failed:velocity:*"))
+    assert "user-one" not in key
+
+
+def test_failed_attempt_velocity_preserves_same_timestamp_events(
+    redis_client: fakeredis.FakeRedis,
+) -> None:
+    velocity = FailedAttemptVelocity(redis_client)
+    now = datetime(2026, 11, 25, 12, tzinfo=UTC)
+
+    velocity.record_failure("user-one", occurred_at=now)
+    velocity.record_failure("user-one", occurred_at=now)
+
+    assert velocity.get_counts("user-one", now=now).last_1_minute == 2
+
+
+@pytest.mark.parametrize(
+    ("user_id", "timestamp"),
+    [
+        ("", datetime(2026, 11, 25, tzinfo=UTC)),
+        ("user-one", datetime(2026, 11, 25)),
+    ],
+)
+def test_failed_attempt_velocity_rejects_invalid_input(
+    redis_client: fakeredis.FakeRedis,
+    user_id: str,
+    timestamp: datetime,
+) -> None:
+    velocity = FailedAttemptVelocity(redis_client)
+
+    with pytest.raises(ValueError):
+        velocity.record_failure(user_id, occurred_at=timestamp)

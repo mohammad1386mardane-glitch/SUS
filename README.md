@@ -18,11 +18,12 @@ Planned capabilities include:
 - Required travel-speed calculation between two located logins (implemented)
 - New-device and new-country profile comparisons (implemented)
 - Time-of-day deviation from usual UTC login hours (implemented)
+- Rolling failed-attempt counts for 1, 5, and 60 minutes (implemented)
 - Additional login behavior features
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, new-device/new-country flags, and time-of-day deviation are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, impossible-travel speed calculation, new-device/new-country flags, time-of-day deviation, and rolling failed-attempt counts are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -101,6 +102,8 @@ The migration command and schema checks were verified with SQLite. The PostgreSQ
 `LoginEventRepository` provides event insertion, lookup, and paginated per-user history; `UserProfileRepository` loads and saves profiles. Repository methods flush changes, while the caller owns the session transaction and commit.
 
 `FailedAttemptCounter` stores per-user counters in Redis with a configurable fixed-window TTL. User identifiers are hashed in Redis keys; the counter sets the expiry atomically on the first failure in each window. Separate window lengths use separate counters. A Redis server must be available when these counters are used. The current login-evaluation endpoint does not yet call the repositories or counters.
+
+`FailedAttemptVelocity` separately records individual failures in per-user Redis sorted sets and atomically returns rolling counts for the inclusive last 1, 5, and 60 minutes. User IDs are hashed, old entries are pruned, and the set expires after one hour. The failure-recording method must be called by its consumer; the evaluation endpoint does not yet record attempts.
 
 ## API
 

@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 3 — Feature Engineering
 - **Latest tag:** `v0.2.0`
-- **Current step:** 3.6 — add failed-attempt velocity
+- **Current step:** 3.7 — add IP reputation list
 - **Blockers:** GeoLite2 lookups require a locally obtained City database at `GEOIP_DB_PATH`; setup instructions are planned for step 3.9. Risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
@@ -63,6 +63,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Calculate travel speed using Haversine distance (mean Earth radius 6371.0088 km), timezone-aware increasing timestamps, and return no speed when coordinates are unavailable. | These rules make the result reproducible and prevent invalid timestamps or missing GeoIP data from becoming misleading velocity values. |
 | 2026-11-25 | Treat a missing profile as empty history for device/country novelty; compare opaque device IDs exactly and country codes case-insensitively; missing country data is not a new-country signal. | New-account signals remain explicit without treating unavailable GeoIP as evidence of novelty. |
 | 2026-11-25 | Compare login-hour profiles in UTC and calculate distance to the nearest usual hour on a circular 24-hour clock. | The profile schema has no timezone field, so UTC provides a consistent basis for both observed login hours and feature evaluation. |
+| 2026-11-25 | Store rolling failure events in hashed Redis sorted sets, use inclusive 1/5/60-minute score windows, and expire the set after one hour. | Sorted sets preserve event timestamps for genuine rolling counts, unlike the existing fixed-window counter; Lua keeps writes and multi-window reads atomic. |
 
 ## Work Log
 
@@ -98,6 +99,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(features): add impossible-travel feature` | Added timezone-aware Haversine travel-speed calculation with explicit handling for missing coordinates, invalid ranges, and non-positive durations. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Impossible-travel tests: 9 passed; Ruff and mypy passed | Dateline crossing and equatorial distance cases verify the shortest geographic path and km/h output. |
 | 2026-11-25 | Copilot SDK | `feat(features): add new device / new country flags` | Added profile comparisons for unseen device IDs and ISO country codes, including missing-profile and missing-country semantics. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Feature tests: 14 passed; Ruff, mypy, and Pylance diagnostics pass | Device IDs are opaque and match exactly; country codes are normalized case-insensitively. |
 | 2026-11-25 | Copilot SDK | `feat(features): add time-of-day deviation` | Added UTC-normalized comparison with usual login hours using nearest circular 24-hour distance. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Feature tests: 21 passed; Ruff, mypy, and Pylance diagnostics pass | Empty histories return no deviation; naive timestamps and hours outside 0–23 are rejected. |
+| 2026-11-25 | Copilot SDK | `feat(features): add failed-attempt velocity` | Added atomic Redis sorted-set recording and rolling counts for the prior 1, 5, and 60 minutes, with hashed user keys and one-hour cleanup. | `app/redis_counters.py`, `tests/test_redis_counters.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Redis counter tests: 8 passed; Ruff, mypy, and Pylance diagnostics pass | Boundaries are inclusive; duplicate failures at the same timestamp are preserved as distinct events. |
 
 ## Open Questions
 
