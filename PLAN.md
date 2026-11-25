@@ -164,7 +164,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 2.4 | `feat(repo): add repository layer` | Data-access classes | ✅ |
 | 2.5 | `feat(redis): add counters for velocity checks` | Failed-attempt counters with TTL | ✅ |
 | 2.6 | `test(db): add repository tests` | Tests with a temporary database | ✅ |
-| 2.7 | `docs: update README (migrations, DB/Redis) and AGENTS` | `alembic upgrade head`, `DATABASE_URL`, `REDIS_URL` | ⬜ |
+| 2.7 | `docs: update README (migrations, DB/Redis) and AGENTS` | `alembic upgrade head`, `DATABASE_URL`, `REDIS_URL` | ✅ |
 
 ## Phase 3: Feature Engineering
 **Goal:** turn a raw event into usable features.

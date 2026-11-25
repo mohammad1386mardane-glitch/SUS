@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** The FastAPI API and SQLAlchemy/Alembic database foundation are implemented. Login evaluation remains a stub; event/profile persistence and the remaining planned features are in progress. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 2's SQLAlchemy models, migrations, repositories, and Redis failed-attempt counters are implemented. The login-evaluation endpoint remains a stub and does not yet write to the data layer; scoring and feature engineering remain planned. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -11,12 +11,13 @@ Planned capabilities include:
 - FastAPI login-event evaluation API
 - API-key authentication for login evaluation
 - JSON request logging with generated request IDs
-- Behavioral event storage and Redis velocity counters
+- SQLAlchemy event/profile tables and repositories (implemented)
+- Redis failed-attempt counters with TTL (implemented)
 - GeoIP and login behavior features
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, and database connection/migration foundation are implemented. Event/profile persistence and the other capabilities are still being added.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, and Redis counters are implemented. GeoIP, risk scoring, machine learning, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -70,19 +71,17 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 
 ## Database
 
-The synchronous SQLAlchemy engine reads `DATABASE_URL` from the environment or `.env`. SQLite is the local default, and PostgreSQL is supported through psycopg. Alembic reads the same setting. Migrations create the `login_events` and `user_profiles` tables.
-
-Once a migration revision exists, apply it from the repository root with:
+The synchronous SQLAlchemy engine reads `DATABASE_URL` from the environment or `.env`. SQLite is the local default, and PostgreSQL is supported through psycopg. Alembic reads the same setting. Apply the migrations from the repository root to create the `login_events` and `user_profiles` tables:
 
 ```powershell
 alembic upgrade head
 ```
 
-The `login_events` table stores event details, optional JSON geographic data, and validated risk output. Each `user_profiles` row stores a user's usual countries, devices, and login hours as JSON arrays.
+The migration command and schema checks were verified with SQLite. The PostgreSQL driver is configured, but a live PostgreSQL connection has not been exercised. The `login_events` table stores event details, optional JSON geographic data, and validated risk output. Each `user_profiles` row stores a user's usual countries, devices, and login hours as JSON arrays.
 
 `LoginEventRepository` provides event insertion, lookup, and paginated per-user history; `UserProfileRepository` loads and saves profiles. Repository methods flush changes, while the caller owns the session transaction and commit.
 
-`FailedAttemptCounter` stores per-user counters in Redis with a configurable fixed-window TTL. User identifiers are hashed in Redis keys; the counter sets the expiry atomically on the first failure in each window. A Redis server must be available when these counters are used.
+`FailedAttemptCounter` stores per-user counters in Redis with a configurable fixed-window TTL. User identifiers are hashed in Redis keys; the counter sets the expiry atomically on the first failure in each window. Separate window lengths use separate counters. A Redis server must be available when these counters are used. The current login-evaluation endpoint does not yet call the repositories or counters.
 
 ## API
 
@@ -142,7 +141,7 @@ mypy app
 pre-commit run --all-files
 ```
 
-The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
+The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. Repository tests apply Alembic migrations to isolated temporary SQLite databases. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
 The editable installation, API tests, and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
 
@@ -155,10 +154,22 @@ Current files:
 ├── .env.example
 ├── .gitignore
 ├── .pre-commit-config.yaml
+├── alembic.ini
+├── alembic/
+│   ├── README
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions/
 ├── AGENTS.md
 ├── app/
 │   ├── __init__.py
+│   ├── db/
+│   │   ├── base.py
+│   │   ├── models.py
+│   │   ├── repositories.py
+│   │   └── session.py
 │   ├── main.py
+│   ├── redis_counters.py
 │   ├── schemas.py
 │   └── settings.py
 ├── docs/
@@ -168,16 +179,20 @@ Current files:
 ├── pyproject.toml
 ├── scripts/
 └── tests/
-    └── test_api.py
+    ├── conftest.py
+    ├── test_api.py
+    ├── test_redis_counters.py
+    └── test_repositories.py
 ```
 
-`app/` contains the service, `tests/` the API tests, `scripts/` model and maintenance scripts, and `docs/` supplementary documentation.
+`app/` contains the service and data layer, `alembic/` database migrations, `tests/` API and data-layer tests, `scripts/` model and maintenance scripts, and `docs/` supplementary documentation.
 
 ## Troubleshooting
 
 - **Cannot start the API:** install the project with `python -m pip install -e ".[dev]"` and run `uvicorn app.main:app --reload` from the repository root.
 - **Docker Compose files not found:** Docker support is planned for Phase 7 and has not been added.
 - **Evaluation requests return 503:** set a non-empty `API_KEY` in the environment or `.env`; the service fails closed when authentication is not configured.
+- **Redis connection errors:** start Redis at the configured `REDIS_URL` before using failed-attempt counters.
 - **Model commands are unavailable:** training and evaluation scripts are planned for Phase 5 and have not been added.
 
 ## Privacy and security
