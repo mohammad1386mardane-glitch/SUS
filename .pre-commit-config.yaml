@@ -25,4 +25,5 @@ repos:
           - pydantic-settings>=2.7
           - redis>=5.2
           - sqlalchemy>=2.0
+          - user-agents>=2.2
         pass_filenames: false

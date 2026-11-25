@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "redis>=5.2",
     "sqlalchemy>=2.0",
+    "user-agents>=2.2",
     "uvicorn[standard]>=0.34",
 ]
 classifiers = [
@@ -53,3 +54,7 @@ python_version = "3.12"
 files = ["app"]
 strict = true
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["user_agents"]
+ignore_missing_imports = true

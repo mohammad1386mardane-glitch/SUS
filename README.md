@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 3 feature engineering is underway. The standalone GeoLite2 lookup is implemented; the login-evaluation endpoint remains a stub and does not yet use GeoIP or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 3 feature engineering is underway. Standalone GeoLite2 lookup and user-agent parsing are implemented; the login-evaluation endpoint remains a stub and does not yet use these helpers or persist to the data layer. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -14,11 +14,12 @@ Planned capabilities include:
 - SQLAlchemy event/profile tables and repositories (implemented)
 - Redis failed-attempt counters with TTL (implemented)
 - MaxMind GeoLite2 IP lookup for country, city, and coordinates (implemented)
+- User-agent parsing for browser, OS, and device type (implemented)
 - Additional login behavior features
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, and standalone GeoLite2 lookup are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, and user-agent parsing are implemented. The login-evaluation endpoint does not yet call the feature helpers. Risk scoring, machine learning, and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -73,6 +74,10 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 ## GeoIP lookup
 
 `lookup_ip` reads a MaxMind GeoLite2 City database at `GEOIP_DB_PATH` and returns the country ISO code, city name, latitude, and longitude. It returns `None` when the database has no record for the address. Invalid IP strings and missing or unreadable database files raise errors rather than silently producing a location. The `.mmdb` file is not included in the repository; the download and setup guide is scheduled for Phase 3.9. The login-evaluation endpoint does not yet call this helper.
+
+## User-agent parsing
+
+`parse_user_agent` returns the parsed browser family, operating-system family, and a device class (`bot`, `tablet`, `mobile`, `desktop`, or `other`). Unknown non-empty strings produce `Other` browser/OS families and the `other` class; empty or whitespace-only input raises `ValueError`. This helper is not yet wired into the login-evaluation endpoint.
 
 ## Database
 
@@ -146,7 +151,7 @@ mypy app
 pre-commit run --all-files
 ```
 
-The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. GeoIP unit tests stub the database reader and do not require a GeoLite2 file. Repository tests apply Alembic migrations to isolated temporary SQLite databases. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
+The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. GeoIP unit tests stub the database reader and do not require a GeoLite2 file; user-agent parsing tests use local parser data and make no network requests. Repository tests apply Alembic migrations to isolated temporary SQLite databases. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
 The editable installation, API tests, and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
 
@@ -177,7 +182,8 @@ Current files:
 │   ├── main.py
 │   ├── redis_counters.py
 │   ├── schemas.py
-│   └── settings.py
+│   ├── settings.py
+│   └── user_agent.py
 ├── docs/
 ├── LICENSE
 ├── PLAN.md
@@ -189,7 +195,8 @@ Current files:
     ├── test_api.py
     ├── test_geoip.py
     ├── test_redis_counters.py
-    └── test_repositories.py
+    ├── test_repositories.py
+    └── test_user_agent.py
 ```
 
 `app/` contains the service and data layer, `alembic/` database migrations, `tests/` API and data-layer tests, `scripts/` model and maintenance scripts, and `docs/` supplementary documentation.
