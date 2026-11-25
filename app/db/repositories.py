@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -36,6 +38,48 @@ class LoginEventRepository:
             .offset(offset)
         )
         return list(self.session.scalars(statement))
+
+    def list_for_user_before(
+        self,
+        user_id: str,
+        before: datetime,
+        *,
+        limit: int = 100,
+    ) -> list[LoginEvent]:
+        if limit < 1:
+            raise ValueError("limit must be greater than zero")
+        if before.utcoffset() is None:
+            raise ValueError("before must be timezone-aware")
+
+        statement = (
+            select(LoginEvent)
+            .where(LoginEvent.user_id == user_id, LoginEvent.timestamp < before)
+            .order_by(LoginEvent.timestamp.desc(), LoginEvent.id.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(statement))
+
+    def distinct_users_for_ip_between(
+        self,
+        ip: str,
+        since: datetime,
+        before: datetime,
+    ) -> set[str]:
+        if since.utcoffset() is None or before.utcoffset() is None:
+            raise ValueError("time bounds must be timezone-aware")
+        if since >= before:
+            raise ValueError("since must be before before")
+
+        statement = (
+            select(LoginEvent.user_id)
+            .where(
+                LoginEvent.ip == ip,
+                LoginEvent.timestamp >= since,
+                LoginEvent.timestamp < before,
+            )
+            .distinct()
+        )
+        return set(self.session.scalars(statement))
 
 
 class UserProfileRepository:

@@ -1,12 +1,19 @@
 import json
 import logging
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from secrets import token_urlsafe
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
+from sqlalchemy.orm import Session
 
+from app.db.models import LoginEvent, UserProfile
+from app.db.repositories import LoginEventRepository, UserProfileRepository
+from app.db.session import get_session
+from app.geoip import GeoIPResult
 from app.main import app
 from app.settings import Settings, get_settings
 
@@ -17,10 +24,16 @@ def api_key() -> str:
 
 
 @pytest.fixture
-def client(api_key: str) -> Iterator[TestClient]:
+def client(api_key: str, db_session: Session) -> Iterator[TestClient]:
     app.dependency_overrides[get_settings] = lambda: Settings(
         api_key=SecretStr(api_key)
     )
+
+    def override_get_session() -> Iterator[Session]:
+        with Session(db_session.get_bind(), expire_on_commit=False) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
     try:
         with TestClient(app) as test_client:
             yield test_client
@@ -47,6 +60,14 @@ def test_health_is_public(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_demo_page_is_available(client: TestClient) -> None:
+    response = client.get("/demo")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Login Risk Test Console" in response.text
+
+
 def test_evaluate_requires_api_key(
     client: TestClient,
     login_event: dict[str, object],
@@ -62,7 +83,7 @@ def test_evaluate_requires_api_key(
     )
 
 
-def test_evaluate_returns_stub_response(
+def test_evaluate_returns_scored_response(
     client: TestClient,
     api_key: str,
     login_event: dict[str, object],
@@ -80,6 +101,128 @@ def test_evaluate_returns_stub_response(
     assert response_data["risk_score"] == 0
     assert response_data["decision"] == "allow"
     assert response_data["reasons"] == []
+
+
+def test_evaluate_scores_and_stores_consecutive_failed_attempts(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+) -> None:
+    repository = LoginEventRepository(db_session)
+    timestamp = datetime(2026, 11, 25, 12, 0, tzinfo=UTC)
+    for minutes_ago in range(1, 5):
+        repository.add(
+            LoginEvent(
+                user_id="u1",
+                ip="203.0.113.5",
+                device_id="d1",
+                user_agent="browser",
+                timestamp=timestamp - timedelta(minutes=minutes_ago),
+                success=False,
+                reasons=[],
+            )
+        )
+    db_session.commit()
+    failed_event = {**login_event, "success": False}
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=failed_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 60
+    assert response.json()["decision"] == "challenge"
+    assert response.json()["reasons"] == ["brute_force_or_credential_stuffing"]
+    db_session.expire_all()
+    stored_events = LoginEventRepository(db_session).list_for_user("u1")
+    assert len(stored_events) == 5
+    assert stored_events[0].risk_score == 60
+
+
+def test_evaluate_uses_configured_high_risk_ip_network(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+) -> None:
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        high_risk_ip_networks=["203.0.113.0/24"],
+    )
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 40
+    assert response.json()["decision"] == "challenge"
+    assert response.json()["reasons"] == ["high_risk_ip"]
+
+
+def test_evaluate_uses_geoip_and_profile_for_travel_and_novelty_rules(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event_time = datetime(2026, 11, 25, 12, 0, tzinfo=UTC)
+    LoginEventRepository(db_session).add(
+        LoginEvent(
+            user_id="u1",
+            ip="198.51.100.10",
+            geo={
+                "country": "US",
+                "city": "Example",
+                "latitude": 0.0,
+                "longitude": 0.0,
+            },
+            device_id="old-device",
+            user_agent="browser",
+            timestamp=event_time - timedelta(hours=1),
+            success=True,
+            reasons=[],
+        )
+    )
+    UserProfileRepository(db_session).save(
+        UserProfile(
+            user_id="u1",
+            usual_countries=["US"],
+            usual_devices=["old-device"],
+            usual_hours=[12],
+        )
+    )
+    db_session.commit()
+
+    def fake_lookup_ip(ip: object, *, db_path: Path | None = None) -> GeoIPResult:
+        assert str(ip) == "203.0.113.5"
+        assert db_path == Path("data/GeoLite2-City.mmdb")
+        return GeoIPResult("GB", "Example", 0.0, 10.0)
+
+    monkeypatch.setattr("app.evaluation.lookup_ip", fake_lookup_ip)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        geoip_enabled=True,
+    )
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 70
+    assert response.json()["decision"] == "challenge"
+    assert response.json()["reasons"] == [
+        "impossible_travel",
+        "new_device_and_country",
+    ]
 
 
 def test_evaluate_fails_closed_without_configured_api_key(
@@ -105,6 +248,22 @@ def test_evaluate_rejects_invalid_event(
     response = client.post(
         "/v1/login-events/evaluate",
         json={"ip": "not-an-ip"},
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 422
+
+
+def test_evaluate_rejects_naive_timestamp(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+) -> None:
+    naive_event = {**login_event, "timestamp": "2026-11-25T12:00:00"}
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=naive_event,
         headers={"X-API-Key": api_key},
     )
 

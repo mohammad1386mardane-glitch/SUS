@@ -86,3 +86,13 @@ def test_settings_loads_thresholds_from_environment(
 def test_settings_rejects_invalid_threshold_order() -> None:
     with pytest.raises(ValidationError, match="score thresholds must satisfy"):
         Settings(allow_max_score=78, challenge_max_score=39)
+
+
+def test_settings_validates_high_risk_ip_networks() -> None:
+    settings = Settings(
+        high_risk_ip_networks=["192.0.2.1", "2001:db8::/32"],
+    )
+
+    assert len(settings.high_risk_ip_networks) == 2
+    with pytest.raises(ValidationError):
+        Settings(high_risk_ip_networks=["not-an-ip-network"])

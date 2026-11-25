@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, IPvAnyAddress
+from pydantic import BaseModel, Field, IPvAnyAddress, field_validator
 
 Decision = Literal["allow", "challenge", "deny"]
 
@@ -13,6 +13,13 @@ class LoginEventRequest(BaseModel):
     device_id: str = Field(min_length=1)
     timestamp: datetime
     success: bool
+
+    @field_validator("timestamp")
+    @classmethod
+    def require_timezone_aware_timestamp(cls, value: datetime) -> datetime:
+        if value.utcoffset() is None:
+            raise ValueError("timestamp must be timezone-aware")
+        return value
 
 
 class LoginEventResponse(BaseModel):

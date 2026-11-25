@@ -1,8 +1,9 @@
 from functools import lru_cache
+from ipaddress import ip_network
 from pathlib import Path
 from typing import Self
 
-from pydantic import SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,10 +18,19 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     api_key: SecretStr = SecretStr("")
     geoip_db_path: Path = Path("data/GeoLite2-City.mmdb")
+    geoip_enabled: bool = False
+    high_risk_ip_networks: list[str] = Field(default_factory=list)
     model_path: Path = Path("artifacts/model.joblib")
     shadow_mode: bool = True
     allow_max_score: int = 39
     challenge_max_score: int = 78
+
+    @field_validator("high_risk_ip_networks")
+    @classmethod
+    def validate_high_risk_ip_networks(cls, networks: list[str]) -> list[str]:
+        for network in networks:
+            ip_network(network, strict=False)
+        return networks
 
     @model_validator(mode="after")
     def validate_score_thresholds(self) -> Self:

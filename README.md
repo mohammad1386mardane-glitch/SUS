@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 4 rule-engine work is underway. The rule base, five concrete rules, capped weighted scoring, and configurable decision thresholds are implemented; the login-evaluation pipeline and demo page are next. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 4 rule-engine work is underway. Rule evaluation, capped weighted scoring, configurable thresholds, API integration, and a local test page are implemented. The full rule test matrix and final Phase 4 documentation are next. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -23,10 +23,10 @@ Planned capabilities include:
 - Typed rule base and deterministic registry (implemented)
 - Explainable rule conditions and weighted scoring (implemented)
 - Additional login behavior features
-- Concrete scoring rules, API integration, and machine-learning anomaly scoring
+- Machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, and weighted scoring are implemented. Login-event evaluation still returns a stub until Phase 4.8 integrates the pipeline. Machine learning and other planned capabilities are not yet available.
+The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, and local test page are implemented. Machine learning and other planned capabilities are not yet available.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ For the planned application:
 - Docker and Docker Compose for the planned containerized deployment
 - PostgreSQL and Redis for the planned production-style local stack; SQLite is planned for development
 
-Only Python is needed to run the API locally. Configure a non-empty `API_KEY` to use the login-evaluation endpoint. A local GeoLite2 City database is additionally required only when calling the standalone GeoIP helper.
+Only Python is needed to run the API locally. Configure a non-empty `API_KEY` to use the login-evaluation endpoint. A local GeoLite2 City database is required for the standalone GeoIP helper and only when enabling GeoIP in login evaluation.
 
 ## Installation
 
@@ -54,6 +54,7 @@ python -m pip install -e ".[dev]"
 Start the API locally with:
 
 ```powershell
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -72,6 +73,8 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `DATABASE_URL` | SQLAlchemy database connection string | Default: local SQLite URL; PostgreSQL is supported with psycopg |
 | `REDIS_URL` | Redis connection string for failed-attempt counters | Default: local Redis URL; Redis must be running to use the counters |
 | `GEOIP_DB_PATH` | Path to the GeoLite2 City database used by the IP lookup | Default: `data/GeoLite2-City.mmdb`; the database file must be obtained separately |
+| `GEOIP_ENABLED` | Use GeoLite2 lookup during login evaluation | Default: `false`; set to `true` only after obtaining the database |
+| `HIGH_RISK_IP_NETWORKS` | JSON list of IPv4/IPv6 addresses and CIDRs for the high-risk rule | Default: `[]` |
 | `ALLOW_MAX_SCORE` | Highest score classified as `allow` | Default: `39` |
 | `CHALLENGE_MAX_SCORE` | Highest score classified as `challenge` | Default: `78`; scores above this are `deny` |
 | `SHADOW_MODE` | Evaluate decisions without enforcing them | Default: `true`; enforcement behavior planned in Phase 4 |
@@ -82,7 +85,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 
 ## GeoIP lookup
 
-`lookup_ip` reads a MaxMind GeoLite2 City database at `GEOIP_DB_PATH` and returns the country ISO code, city name, latitude, and longitude. It returns `None` when the database has no record for the address. Invalid IP strings and missing or unreadable database files raise errors rather than silently producing a location. The `.mmdb` file is not included in the repository. The login-evaluation endpoint does not yet call this helper.
+`lookup_ip` reads a MaxMind GeoLite2 City database at `GEOIP_DB_PATH` and returns the country ISO code, city name, latitude, and longitude. It returns `None` when the database has no record for the address. Invalid IP strings and missing or unreadable database files raise errors rather than silently producing a location. The `.mmdb` file is not included in the repository. Login evaluation uses this helper only when `GEOIP_ENABLED=true`; the default `false` keeps local evaluation usable without downloading a database.
 
 ### Downloading and configuring the database
 
@@ -106,7 +109,7 @@ GeoLite locations are approximate areas, not precise addresses or households; tr
 
 `parse_user_agent` returns the parsed browser family, operating-system family, and a device class (`bot`, `tablet`, `mobile`, `desktop`, or `other`). Unknown non-empty strings produce `Other` browser/OS families and the `other` class; empty or whitespace-only input raises `ValueError`. This helper is not yet wired into the login-evaluation endpoint.
 
-`required_travel_speed_kmh` computes the Haversine distance between two GeoIP results and divides by the elapsed time. It returns `None` when either location or its coordinates are missing, requires timezone-aware timestamps in increasing order, and reports speed in km/h. It is a standalone feature helper, not yet connected to the API.
+`required_travel_speed_kmh` computes the Haversine distance between two GeoIP results and divides by the elapsed time. It returns `None` when either location or its coordinates are missing, requires timezone-aware timestamps in increasing order, and reports speed in km/h. Login evaluation uses this helper when GeoIP is enabled and a previous located event exists.
 
 `detect_new_login_signals` compares a device ID and country code with a user's `UserProfile`. Device IDs are matched exactly; country codes are matched case-insensitively. A missing profile is treated as empty history, while a missing country does not set the new-country flag.
 
@@ -122,19 +125,19 @@ alembic upgrade head
 
 The migration command and schema checks were verified with SQLite. The PostgreSQL driver is configured, but a live PostgreSQL connection has not been exercised. The `login_events` table stores event details, optional JSON geographic data, and validated risk output. Each `user_profiles` row stores a user's usual countries, devices, and login hours as JSON arrays.
 
-`LoginEventRepository` provides event insertion, lookup, and paginated per-user history; `UserProfileRepository` loads and saves profiles. Repository methods flush changes, while the caller owns the session transaction and commit.
+`LoginEventRepository` provides event insertion, lookup, paginated per-user history, prior-event lookup, and distinct-user queries by IP/time window; `UserProfileRepository` loads and saves profiles. Repository methods flush changes, while the caller owns the session transaction and commit. Login evaluation commits its stored result after computing the score.
 
-`FailedAttemptCounter` stores per-user counters in Redis with a configurable fixed-window TTL. User identifiers are hashed in Redis keys; the counter sets the expiry atomically on the first failure in each window. Separate window lengths use separate counters. A Redis server must be available when these counters are used. The current login-evaluation endpoint does not yet call the repositories or counters.
+`FailedAttemptCounter` stores per-user counters in Redis with a configurable fixed-window TTL. User identifiers are hashed in Redis keys; the counter sets the expiry atomically on the first failure in each window. Separate window lengths use separate counters. A Redis server must be available when these counters are used. Login evaluation currently uses stored events for brute-force and credential-stuffing signals and does not depend on Redis.
 
-`FailedAttemptVelocity` separately records individual failures in per-user Redis sorted sets and atomically returns rolling counts for the inclusive last 1, 5, and 60 minutes. User IDs are hashed; each write prunes entries older than one hour and refreshes the set's one-hour TTL. The failure-recording method must be called by its consumer; the evaluation endpoint does not yet record attempts.
+`FailedAttemptVelocity` separately records individual failures in per-user Redis sorted sets and atomically returns rolling counts for the inclusive last 1, 5, and 60 minutes. User IDs are hashed; each write prunes entries older than one hour and refreshes the set's one-hour TTL. It remains a standalone helper; login evaluation uses persisted event history for the current rules.
 
-`HighRiskIPList` matches IPv4/IPv6 addresses against supplied individual IPs and CIDR networks. It ships no VPN, Tor, proxy, or other reputation feed; callers must provide and maintain a trusted list. Invalid addresses or list entries raise `ValueError`. This helper is not yet wired into the evaluation endpoint.
+`HighRiskIPList` matches IPv4/IPv6 addresses against the configured `HIGH_RISK_IP_NETWORKS` list. No VPN, Tor, proxy, or other reputation feed is bundled; operators must supply and maintain a trusted list.
 
 ## Rule engine
 
-Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. `ImpossibleTravelRule` triggers strictly above 900 km/h with weight 40. `BruteForceRule` triggers at five consecutive failures or five distinct users from one IP, with weight 60. `NewDeviceAndCountryRule` triggers only when both signals are true, with weight 30. `HighRiskIPRule` triggers on a supplied high-risk IP match, with weight 40. `UnusualHourRule` triggers at a six-hour or greater deviation from a user's usual UTC login hours, with weight 15.
+Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. `ImpossibleTravelRule` triggers strictly above 900 km/h with weight 40. `BruteForceRule` triggers at five consecutive failures or five distinct users from one IP within five minutes, with weight 60. `NewDeviceAndCountryRule` triggers only when both signals are true, with weight 30. `HighRiskIPRule` triggers on a supplied high-risk IP match, with weight 40. `UnusualHourRule` triggers at a six-hour or greater deviation from a user's usual UTC login hours, with weight 15.
 
-`aggregate_score` sums the weights of triggered rules and caps the score at 100. `score_to_decision` uses `ALLOW_MAX_SCORE` and `CHALLENGE_MAX_SCORE`, defaulting to `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. Both threshold values are validated at startup and can be overridden with environment variables. Login-event evaluation will be wired to the rule engine in Phase 4.8.
+`aggregate_score` sums the weights of triggered rules and caps the score at 100. `score_to_decision` uses `ALLOW_MAX_SCORE` and `CHALLENGE_MAX_SCORE`, defaulting to `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. Both threshold values are validated at startup and can be overridden with environment variables. Login evaluation builds rule context from saved event history, user profiles, and configured GeoIP/reputation sources, then stores the evaluation result.
 
 ## API
 
@@ -143,12 +146,12 @@ Implemented and planned core endpoints:
 | Method | Path | Purpose | Planned step |
 |---|---|---|---|
 | `GET` | `/health` | Health check (`{"status":"ok"}`) | 1.1 — implemented |
-| `POST` | `/v1/login-events/evaluate` | Evaluate a login event (stub: always returns `allow`); requires `X-API-Key` | 1.4–1.5 — implemented |
+| `GET` | `/demo` | Local browser page for submitting test login events | 4.8 — implemented |
+| `POST` | `/v1/login-events/evaluate` | Evaluate and store a login event with risk score, decision, and reasons; requires `X-API-Key` | 1.4–1.5, 4.8 — implemented |
 | `POST` | `/v1/feedback` | Submit a feedback label | 6.1 |
 | `GET` | `/v1/users/{id}/risk-history` | Retrieve a user's risk history | 6.4 |
 
-The login-event request and response schemas are defined, and the evaluation endpoint currently returns a stub response.
-Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health endpoint remains public. Requests to the evaluation endpoint receive `401 Unauthorized` for a missing or incorrect key.
+Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health and demo pages are public; evaluation requests receive `401 Unauthorized` for a missing or incorrect key. Request timestamps must include a timezone. Apply the SQLite migration with `alembic upgrade head` before evaluating events. GeoIP lookup is disabled by default; enable it only after configuring a valid database path. Each evaluation is saved to `login_events`; user profiles are read but not automatically updated.
 Each response includes a generated `X-Request-ID`; the server logs the method, path, status, duration, and request ID as a JSON object without logging request bodies or authentication headers.
 
 Request:
@@ -164,10 +167,6 @@ Request:
 }
 ```
 
-The stub response always allows the event; risk evaluation and reasons are not implemented yet.
-
-Planned response example (the current stub instead always returns `allow`):
-
 ```json
 {
   "event_id": "evt_001",
@@ -177,7 +176,11 @@ Planned response example (the current stub instead always returns `allow`):
 }
 ```
 
-The planned default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`; the scorer is implemented, but the endpoint is not yet wired to it.
+The response contains the weighted rule result. Default thresholds are `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`.
+
+### Local test page
+
+After applying migrations and starting the API, open `http://127.0.0.1:8000/demo`, enter the configured API key, and submit an event. Uncheck **Login succeeded** and submit five attempts for the same user to exercise the brute-force rule. The page refreshes its UTC timestamp on each submission and displays the actual API response. It keeps the key in page memory only and sends it to the same origin; use it for local development, not shared or production browsers.
 
 ## Model training
 
@@ -194,7 +197,7 @@ mypy app
 pre-commit run --all-files
 ```
 
-The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. GeoIP unit tests stub the database reader and do not require a GeoLite2 file; user-agent parsing tests use local parser data and make no network requests. Repository tests apply Alembic migrations to isolated temporary SQLite databases. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
+The development extra installs pytest, `httpx2` for Starlette's TestClient, and Lua-enabled `fakeredis` for counter tests without a Redis server. GeoIP unit tests stub the database reader and do not require a GeoLite2 file; user-agent parsing tests use local parser data and make no network requests. Repository and API tests apply Alembic migrations to isolated temporary SQLite databases. The pre-commit hooks run TOML/YAML and whitespace checks, Ruff lint/format, and mypy.
 
 The editable installation, API tests, and listed quality checks were verified with Python 3.14. The project requires Python 3.12 or newer.
 
@@ -222,6 +225,8 @@ Current files:
 │   │   ├── repositories.py
 │   │   └── session.py
 │   ├── features.py
+│   ├── evaluation.py
+│   ├── demo.html
 │   ├── geoip.py
 │   ├── ip_reputation.py
 │   ├── main.py
@@ -260,6 +265,7 @@ Current files:
 - **Cannot start the API:** install the project with `python -m pip install -e ".[dev]"` and run `uvicorn app.main:app --reload` from the repository root.
 - **Docker Compose files not found:** Docker support is planned for Phase 7 and has not been added.
 - **Evaluation requests return 503:** set a non-empty `API_KEY` in the environment or `.env`; the service fails closed when authentication is not configured.
+- **Evaluation requests fail with a database error:** run `alembic upgrade head` before starting the API.
 - **Redis connection errors:** start Redis at the configured `REDIS_URL` before using failed-attempt counters.
 - **Model commands are unavailable:** training and evaluation scripts are planned for Phase 5 and have not been added.
 

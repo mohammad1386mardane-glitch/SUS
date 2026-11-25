@@ -42,6 +42,9 @@ where = ["."]
 include = ["app*"]
 exclude = ["tests*"]
 
+[tool.setuptools.package-data]
+app = ["demo.html"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py312"

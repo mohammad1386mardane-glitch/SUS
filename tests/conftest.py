@@ -24,6 +24,7 @@ def db_session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Sess
         alembic_config = Config(
             str(Path(__file__).resolve().parents[1] / "alembic.ini")
         )
+        alembic_config.attributes["skip_logging_config"] = True
         command.upgrade(alembic_config, "head")
         engine = create_db_engine(database_url)
         with Session(engine, expire_on_commit=False) as session:

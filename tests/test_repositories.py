@@ -58,6 +58,36 @@ def test_login_event_repository_adds_and_pages_by_user(
     assert repository.list_for_user("unknown") == []
 
 
+def test_login_event_repository_filters_previous_events_and_distinct_ip_users(
+    db_session: Session,
+) -> None:
+    repository = LoginEventRepository(db_session)
+    window_start = datetime(2026, 11, 25, 11, 55, tzinfo=UTC)
+    before = datetime(2026, 11, 25, 12, 0, tzinfo=UTC)
+    events = (
+        create_event("old-user", datetime(2026, 11, 25, 11, 54, tzinfo=UTC)),
+        create_event("user-1", datetime(2026, 11, 25, 11, 56, tzinfo=UTC)),
+        create_event("user-2", datetime(2026, 11, 25, 11, 57, tzinfo=UTC)),
+        create_event("user-1", datetime(2026, 11, 25, 11, 58, tzinfo=UTC)),
+        create_event("future-user", before),
+    )
+    for event in events:
+        repository.add(event)
+    db_session.commit()
+
+    previous = repository.list_for_user_before("user-1", before, limit=1)
+    users = repository.distinct_users_for_ip_between(
+        "203.0.113.5",
+        window_start,
+        before,
+    )
+
+    assert [event.timestamp for event in previous] == [
+        datetime(2026, 11, 25, 11, 58, tzinfo=UTC)
+    ]
+    assert users == {"user-1", "user-2"}
+
+
 @pytest.mark.parametrize(
     ("limit", "offset"),
     [(0, 0), (1, -1)],

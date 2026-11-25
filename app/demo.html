@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login Risk Test Console</title>
+    <style>
+      :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+      body { margin: 2rem auto; max-width: 46rem; padding: 0 1rem; }
+      form { display: grid; gap: 1rem; }
+      label { display: grid; gap: .25rem; }
+      input { font: inherit; max-width: 100%; padding: .5rem; }
+      button { cursor: pointer; font: inherit; padding: .6rem 1rem; width: fit-content; }
+      .check { align-items: center; display: flex; gap: .5rem; }
+      .check input { margin: 0; }
+      pre { background: color-mix(in srgb, CanvasText 8%, Canvas); overflow-wrap: anywhere; padding: 1rem; white-space: pre-wrap; }
+      .note { opacity: .8; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Login Risk Test Console</h1>
+      <p class="note">Local-development helper for submitting login events to this service. The API key is sent only to this page's origin and is not saved. Do not enter production credentials in a shared browser.</p>
+      <form id="event-form">
+        <label>
+          API key
+          <input id="api-key" type="password" autocomplete="off" required>
+        </label>
+        <label>
+          User ID
+          <input id="user-id" value="demo-user" required>
+        </label>
+        <label>
+          IP address
+          <input id="ip" value="203.0.113.5" required>
+        </label>
+        <label>
+          User agent
+          <input id="user-agent" value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36" required>
+        </label>
+        <label>
+          Device ID
+          <input id="device-id" value="demo-device" required>
+        </label>
+        <label>
+          Event timestamp (UTC, refreshed on each submit)
+          <input id="timestamp" readonly>
+        </label>
+        <label class="check">
+          <input id="success" type="checkbox" checked>
+          Login succeeded
+        </label>
+        <button id="submit" type="submit">Evaluate login</button>
+      </form>
+      <h2>Evaluation response</h2>
+      <pre id="result" aria-live="polite">Submit an event to see its score, decision, and reasons.</pre>
+    </main>
+    <script>
+      const form = document.getElementById("event-form");
+      const result = document.getElementById("result");
+      const timestamp = document.getElementById("timestamp");
+      const submit = document.getElementById("submit");
+      let lastTimestamp = 0;
+
+      function nextTimestamp() {
+        lastTimestamp = Math.max(Date.now(), lastTimestamp + 1);
+        return new Date(lastTimestamp).toISOString();
+      }
+
+      timestamp.value = nextTimestamp();
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        submit.disabled = true;
+        result.textContent = "Evaluating...";
+        timestamp.value = nextTimestamp();
+        const apiKey = document.getElementById("api-key").value;
+        const payload = {
+          user_id: document.getElementById("user-id").value,
+          ip: document.getElementById("ip").value,
+          user_agent: document.getElementById("user-agent").value,
+          device_id: document.getElementById("device-id").value,
+          timestamp: timestamp.value,
+          success: document.getElementById("success").checked,
+        };
+
+        try {
+          const response = await fetch("/v1/login-events/evaluate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": apiKey,
+            },
+            body: JSON.stringify(payload),
+          });
+          const responseBody = await response.json();
+          result.textContent = JSON.stringify(
+            { status: response.status, ...responseBody },
+            null,
+            2,
+          );
+        } catch (error) {
+          result.textContent = `Request failed: ${error}`;
+        } finally {
+          submit.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
