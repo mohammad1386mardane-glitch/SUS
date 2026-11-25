@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Security, status
 from fastapi.responses import FileResponse
 from fastapi.security import APIKeyHeader
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from redis.exceptions import RedisError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.base import RequestResponseEndpoint
@@ -28,6 +29,8 @@ from app.metrics import (
     registry,
     route_template,
 )
+from app.rate_limit import ApiKeyRateLimiter
+from app.redis_counters import get_redis_client
 from app.schemas import (
     Decision,
     FeedbackRequest,
@@ -108,6 +111,23 @@ def require_api_key(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API key",
         )
+    if settings.rate_limit_enabled:
+        try:
+            rate_limit_window = ApiKeyRateLimiter(get_redis_client()).consume(
+                api_key,
+                window_seconds=settings.rate_limit_window_seconds,
+            )
+        except RedisError as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="API rate limiter is unavailable",
+            ) from error
+        if rate_limit_window.request_count > settings.rate_limit_max_requests:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="API rate limit exceeded",
+                headers={"Retry-After": str(rate_limit_window.retry_after_seconds)},
+            )
 
 
 @app.post(

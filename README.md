@@ -29,6 +29,7 @@ Planned capabilities include:
 - Optional weighted rule/ML score blending in login evaluation (implemented)
 - Precision, recall, ROC-AUC, and false-positive evaluation (implemented)
 - Prometheus request, latency, and decision metrics at `/metrics` (implemented)
+- Optional Redis-backed API-key rate limiting (implemented)
 - Additional login behavior features
 - Optional machine-learning anomaly scoring (implemented)
 - Feedback and monitoring endpoints
@@ -87,6 +88,9 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `SHADOW_MODE` | Advisory marker for downstream enforcement | Default: `true`; the API returns the same score/decision in either mode and never blocks logins |
 | `MODEL_PATH` | Base path for the versioned model registry | Default: `artifacts/model.joblib`; writes numbered artifacts and a `model.json` latest-version manifest |
 | `ML_ENABLED` | Blend the registered model score into API evaluation | Default: `false`; requires a trained model registered at `MODEL_PATH` |
+| `RATE_LIMIT_ENABLED` | Enforce a shared Redis fixed-window limit per valid API key | Default: `false`; requires Redis when enabled |
+| `RATE_LIMIT_MAX_REQUESTS` | Maximum protected requests allowed per API key in one window | Default: `100`; must be at least `1` |
+| `RATE_LIMIT_WINDOW_SECONDS` | Fixed-window duration for API-key rate limits | Default: `60`; must be at least `1` |
 | `API_KEY` | API-key authentication secret for login evaluation | Required; when empty, evaluation requests return `503 Service Unavailable` |
 
 `API_KEY` is stored as a secret value and is not included in its normal string representation. Do not put a real key in source control.
@@ -163,6 +167,7 @@ Implemented and planned core endpoints:
 | `GET` | `/v1/users/{user_id}/risk-history` | Paginated risk history without IP, device, or user-agent fields; requires `X-API-Key` | 6.4 — implemented |
 
 Set `API_KEY` in the environment or `.env`, then include it in the `X-API-Key` request header. The health and demo pages are public; evaluation requests receive `401 Unauthorized` for a missing or incorrect key. Request timestamps must include a timezone. Apply the SQLite migration with `alembic upgrade head` before evaluating events. GeoIP lookup is disabled by default; enable it only after configuring a valid database path. Each evaluation is saved to `login_events`. A successful `allow` evaluation updates the user's usual device, available country, and UTC login hour only when there is no model anomaly or risk reason other than the low-weight new-device-and-country signal; failed or riskier logins do not update the profile.
+Set `RATE_LIMIT_ENABLED=true` to limit authenticated routes using the shared Redis backend. The fixed window allows the configured number of requests, returns `429 Too Many Requests` with `Retry-After` when exceeded, and returns `503 Service Unavailable` rather than bypassing limits if Redis is unavailable. Invalid API keys are rejected before consuming a rate-limit slot.
 Submit feedback using the `event_id` returned by login evaluation. The API accepts `real_attack` or `false_positive`, returns `404` for unknown events, and returns `409` if feedback already exists for that event.
 Risk history is ordered newest first and accepts `limit` (default 20, maximum 100) and `offset` (default 0); entries expose the event ID, timestamp, risk score, decision, and reasons, but omit login IPs and device identifiers.
 Each response includes a generated `X-Request-ID`; the server logs the method, matched route template, status, duration, and request ID as a JSON object without logging request bodies, user IDs in dynamic paths, or authentication headers. Prometheus metrics use the same route-template labels rather than raw paths, and decision metrics use only the bounded `allow`, `challenge`, and `deny` values.

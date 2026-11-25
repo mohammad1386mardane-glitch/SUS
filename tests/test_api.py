@@ -5,9 +5,11 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from secrets import token_urlsafe
 
+import fakeredis
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.orm import Session
 
 from app.db.models import LoginEvent, LoginFeedback, UserProfile
@@ -276,6 +278,65 @@ def test_risk_history_rejects_invalid_pagination(
     )
 
     assert response.status_code == 422
+
+
+def test_api_rate_limit_applies_to_valid_api_key_across_endpoints(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    redis_client = fakeredis.FakeRedis(decode_responses=True)
+    monkeypatch.setattr("app.main.get_redis_client", lambda: redis_client)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        rate_limit_enabled=True,
+        rate_limit_max_requests=1,
+        rate_limit_window_seconds=60,
+    )
+
+    invalid_key = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": "not-the-configured-key"},
+    )
+    first = client.post(
+        "/v1/login-events/evaluate",
+        json=login_event,
+        headers={"X-API-Key": api_key},
+    )
+    limited = client.get(
+        "/v1/users/u1/risk-history",
+        headers={"X-API-Key": api_key},
+    )
+
+    assert invalid_key.status_code == 401
+    assert redis_client.dbsize() == 1
+    assert first.status_code == 200
+    assert limited.status_code == 429
+    assert 1 <= int(limited.headers["Retry-After"]) <= 60
+
+
+def test_api_rate_limiter_fails_closed_when_redis_is_unavailable(
+    client: TestClient,
+    api_key: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable_client() -> fakeredis.FakeRedis:
+        raise RedisConnectionError("test Redis outage")
+
+    monkeypatch.setattr("app.main.get_redis_client", unavailable_client)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        rate_limit_enabled=True,
+    )
+
+    response = client.get(
+        "/v1/users/u1/risk-history",
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 503
 
 
 def test_evaluate_updates_profile_after_trusted_login(

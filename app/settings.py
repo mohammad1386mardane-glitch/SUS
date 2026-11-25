@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     high_risk_ip_networks: list[str] = Field(default_factory=list)
     model_path: Path = Path("artifacts/model.joblib")
     ml_enabled: bool = False
+    rate_limit_enabled: bool = False
+    rate_limit_max_requests: int = Field(default=100, ge=1)
+    rate_limit_window_seconds: int = Field(default=60, ge=1)
     shadow_mode: bool = True
     allow_max_score: int = 39
     challenge_max_score: int = 78
