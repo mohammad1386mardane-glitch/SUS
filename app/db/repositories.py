@@ -1,6 +1,8 @@
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from app.db.models import LoginEvent, LoginFeedback, UserProfile
@@ -97,6 +99,67 @@ class UserProfileRepository:
         saved_profile = self.session.merge(profile)
         self.session.flush()
         return saved_profile
+
+    def add_trusted_login(
+        self,
+        *,
+        user_id: str,
+        device_id: str,
+        country: str | None,
+        hour: int,
+    ) -> UserProfile:
+        statement = (
+            select(UserProfile)
+            .where(UserProfile.user_id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        profile = self.session.scalar(statement)
+        if profile is None:
+            dialect_name = self.session.get_bind().dialect.name
+            if dialect_name == "postgresql":
+                self.session.execute(
+                    postgresql_insert(UserProfile)
+                    .values(
+                        user_id=user_id,
+                        usual_countries=[],
+                        usual_devices=[],
+                        usual_hours=[],
+                    )
+                    .on_conflict_do_nothing(index_elements=[UserProfile.user_id])
+                )
+            elif dialect_name == "sqlite":
+                self.session.execute(
+                    sqlite_insert(UserProfile)
+                    .values(
+                        user_id=user_id,
+                        usual_countries=[],
+                        usual_devices=[],
+                        usual_hours=[],
+                    )
+                    .on_conflict_do_nothing(index_elements=[UserProfile.user_id])
+                )
+            else:
+                raise NotImplementedError(
+                    f"Trusted profile learning is unsupported for {dialect_name}"
+                )
+            profile = self.session.scalar(statement)
+            if profile is None:
+                raise RuntimeError("Unable to create or load user profile")
+
+        if device_id not in profile.usual_devices:
+            profile.usual_devices = [*profile.usual_devices, device_id]
+
+        normalized_country = country.strip().upper() if country else None
+        known_countries = {item.strip().upper() for item in profile.usual_countries}
+        if normalized_country and normalized_country not in known_countries:
+            profile.usual_countries = [*profile.usual_countries, normalized_country]
+
+        if hour not in profile.usual_hours:
+            profile.usual_hours = [*profile.usual_hours, hour]
+
+        self.session.flush()
+        return profile
 
 
 class LoginFeedbackRepository:

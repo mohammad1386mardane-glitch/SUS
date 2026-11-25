@@ -151,3 +151,31 @@ def test_user_profile_repository_creates_and_updates_profile(
 
     assert updated.usual_countries == ["US"]
     assert repository.get_by_user_id("user-1") is updated
+
+
+def test_trusted_login_updates_merge_profile_signals(
+    db_session: Session,
+) -> None:
+    repository = UserProfileRepository(db_session)
+
+    repository.add_trusted_login(
+        user_id="user-1",
+        device_id="device-1",
+        country="us",
+        hour=8,
+    )
+    db_session.commit()
+    repository.add_trusted_login(
+        user_id="user-1",
+        device_id="device-2",
+        country="US",
+        hour=9,
+    )
+    db_session.commit()
+
+    profile = repository.get_by_user_id("user-1")
+
+    assert profile is not None
+    assert profile.usual_devices == ["device-1", "device-2"]
+    assert profile.usual_countries == ["US"]
+    assert profile.usual_hours == [8, 9]
