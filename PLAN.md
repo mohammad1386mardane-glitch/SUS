@@ -158,7 +158,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 
 | # | Commit | Description | Status |
 |---|---|---|---|
-| 2.1 | `feat(db): add SQLAlchemy + Alembic setup` | Connection and migrations | ⬜ |
+| 2.1 | `feat(db): add SQLAlchemy + Alembic setup` | Connection and migrations | ✅ |
 | 2.2 | `feat(db): add login_events table` | user_id, ip, geo, device, ua, ts, score, decision | ⬜ |
 | 2.3 | `feat(db): add user_profiles table` | Usual countries, devices, and hours per user | ⬜ |
 | 2.4 | `feat(repo): add repository layer` | Data-access classes | ⬜ |

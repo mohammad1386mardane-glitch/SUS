@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** The FastAPI health endpoint and stub login evaluation endpoint are implemented. The evaluation endpoint requires API-key authentication; scoring and remaining planned features are still in progress. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** The FastAPI API and SQLAlchemy/Alembic database foundation are implemented. Login evaluation remains a stub; event/profile persistence and the remaining planned features are in progress. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -16,7 +16,7 @@ Planned capabilities include:
 - Explainable rule scoring and machine-learning anomaly scoring
 - Feedback and monitoring endpoints
 
-The health endpoint, stub evaluation endpoint, settings, API-key authentication, and JSON request logging are implemented. The other capabilities are planned and not yet available.
+The health endpoint, stub evaluation endpoint, settings, API-key authentication, JSON request logging, and database connection/migration foundation are implemented. Event/profile persistence and the other capabilities are still being added.
 
 ## Prerequisites
 
@@ -59,7 +59,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 
 | Variable | Purpose | Status |
 |---|---|---|
-| `DATABASE_URL` | Database connection string | Default: local SQLite URL; database integration planned in Phase 2 |
+| `DATABASE_URL` | SQLAlchemy database connection string | Default: local SQLite URL; PostgreSQL is supported with psycopg |
 | `REDIS_URL` | Redis connection string | Default: local Redis URL; Redis integration planned in Phase 2 |
 | `GEOIP_DB_PATH` | Path to the GeoLite2 database | Default: `data/GeoLite2-City.mmdb`; GeoIP integration planned in Phase 3 |
 | `SHADOW_MODE` | Evaluate decisions without enforcing them | Default: `true`; enforcement behavior planned in Phase 4 |
@@ -67,6 +67,18 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `API_KEY` | API-key authentication secret for login evaluation | Required; when empty, evaluation requests return `503 Service Unavailable` |
 
 `API_KEY` is stored as a secret value and is not included in its normal string representation. Do not put a real key in source control.
+
+## Database
+
+The synchronous SQLAlchemy engine reads `DATABASE_URL` from the environment or `.env`. SQLite is the local default, and PostgreSQL is supported through psycopg. Alembic is configured to read the same setting; the first schema migration is added with the Phase 2 table models.
+
+Once a migration revision exists, apply it from the repository root with:
+
+```powershell
+alembic upgrade head
+```
+
+Step 2.1 provides the connection and migration infrastructure; the event and profile tables are introduced in the following steps.
 
 ## API
 

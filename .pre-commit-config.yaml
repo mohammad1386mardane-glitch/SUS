@@ -22,4 +22,5 @@ repos:
         additional_dependencies:
           - fastapi>=0.115
           - pydantic-settings>=2.7
+          - sqlalchemy>=2.0
         pass_filenames: false

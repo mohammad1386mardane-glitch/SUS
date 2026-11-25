@@ -51,10 +51,7 @@ def test_evaluate_requires_api_key(
     client: TestClient,
     login_event: dict[str, object],
 ) -> None:
-    assert (
-        client.post("/v1/login-events/evaluate", json=login_event).status_code
-        == 401
-    )
+    assert client.post("/v1/login-events/evaluate", json=login_event).status_code == 401
     assert (
         client.post(
             "/v1/login-events/evaluate",
@@ -90,9 +87,7 @@ def test_evaluate_fails_closed_without_configured_api_key(
     api_key: str,
     login_event: dict[str, object],
 ) -> None:
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        api_key=SecretStr("")
-    )
+    app.dependency_overrides[get_settings] = lambda: Settings(api_key=SecretStr(""))
 
     response = client.post(
         "/v1/login-events/evaluate",
