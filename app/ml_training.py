@@ -1,4 +1,3 @@
-import csv
 import math
 import statistics
 from dataclasses import dataclass
@@ -6,10 +5,10 @@ from pathlib import Path
 
 from sklearn.ensemble import IsolationForest
 
-from app.ml_features import FEATURE_NAMES
+from app.ml_data import load_labeled_dataset
 from app.model_registry import ModelRegistry
 
-DEFAULT_CONTAMINATION = 0.05
+DEFAULT_CONTAMINATION = 0.02
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,29 +32,13 @@ def train_isolation_forest(
     if not 0 < contamination <= 0.5:
         raise ValueError("contamination must be greater than 0 and at most 0.5")
 
-    normal_features: list[list[float]] = []
-    suspicious_count = 0
-    expected_fields = [*FEATURE_NAMES, "label"]
-    with input_path.open(newline="", encoding="utf-8") as input_file:
-        reader = csv.DictReader(input_file)
-        if reader.fieldnames != expected_fields:
-            raise ValueError(f"dataset columns must be exactly {expected_fields!r}")
-        for line_number, row in enumerate(reader, start=2):
-            label = row["label"]
-            if label not in {"0", "1"}:
-                raise ValueError(f"line {line_number}: label must be 0 or 1")
-            feature_values = [
-                _parse_feature(row[name], name, line_number) for name in FEATURE_NAMES
-            ]
-            if label == "0":
-                normal_features.append(feature_values)
-            else:
-                suspicious_count += 1
-
-    if len(normal_features) < 2:
-        raise ValueError("dataset must contain at least two normal rows")
-    if suspicious_count == 0:
-        raise ValueError("dataset must contain at least one suspicious row")
+    dataset = load_labeled_dataset(input_path)
+    normal_features = [
+        list(values)
+        for values, label in zip(dataset.features, dataset.labels, strict=True)
+        if label == 0
+    ]
+    suspicious_count = dataset.labels.count(1)
 
     model = IsolationForest(
         n_estimators=100,
@@ -92,19 +75,3 @@ def train_isolation_forest(
         random_state=random_state,
         contamination=contamination,
     )
-
-
-def _parse_feature(value: str | None, name: str, line_number: int) -> float:
-    if value is None:
-        raise ValueError(f"line {line_number}: missing feature {name!r}")
-    try:
-        parsed = float(value)
-    except ValueError as error:
-        raise ValueError(
-            f"line {line_number}: feature {name!r} must be numeric"
-        ) from error
-    if not math.isfinite(parsed) or not 0 <= parsed <= 1:
-        raise ValueError(
-            f"line {line_number}: feature {name!r} must be between 0 and 1"
-        )
-    return parsed

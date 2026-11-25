@@ -211,7 +211,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 5.3 | `feat(ml): add model registry (versioned artifacts)` | Save models with version and metadata | ✅ |
 | 5.4 | `feat(ml): add inference service` | Load model and compute anomaly score | ✅ |
 | 5.5 | `feat(scoring): blend rules + ML score` | e.g. `0.6 * rules + 0.4 * ml` | ✅ |
-| 5.6 | `feat(ml): add evaluation script` | precision / recall / ROC-AUC | ⬜ |
+| 5.6 | `feat(ml): add evaluation script` | precision / recall / ROC-AUC | ✅ |
 | 5.7 | `test(ml): add model smoke tests` | Output stays within valid range | ⬜ |
 | 5.8 | `docs: update README (train/evaluate) and AGENTS` | Train/evaluate commands and `MODEL_PATH` | ⬜ |
 

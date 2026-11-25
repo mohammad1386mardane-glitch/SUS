@@ -1,4 +1,5 @@
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -26,6 +27,9 @@ class InferenceService:
         self._registry = ModelRegistry(model_base_path)
 
     def score(self, context: RuleContext) -> InferenceResult:
+        return self.score_features(features_from_context(context))
+
+    def score_features(self, features: Mapping[str, float]) -> InferenceResult:
         registered = self._registry.latest()
         if registered is None:
             raise FileNotFoundError(
@@ -40,9 +44,21 @@ class InferenceService:
                 "registered model features do not match the current schema"
             )
 
+        if set(features) != set(FEATURE_NAMES):
+            raise ValueError("inference features do not match the current schema")
+        values: list[float] = []
+        for name in FEATURE_NAMES:
+            value = features[name]
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or not 0 <= value <= 1
+            ):
+                raise ValueError(f"inference feature {name!r} must be between 0 and 1")
+            values.append(float(value))
+
         model = _load_model(registered.artifact_path)
-        features = features_from_context(context)
-        values = [features[name] for name in registered.metadata.feature_names]
         decisions = model.decision_function([values])
         if len(decisions) != 1:
             raise RuntimeError("model returned an unexpected number of scores")

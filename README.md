@@ -1,6 +1,6 @@
 # Suspicious Login Detection API
 
-> **Project status:** Phase 4 rule-engine MVP is complete. Phase 5 is underway: synthetic data generation, Isolation Forest training, a versioned registry, standalone inference, and optional rule/ML score blending are implemented. Model evaluation is next. See [PLAN.md](./PLAN.md) for the implementation sequence.
+> **Project status:** Phase 4 rule-engine MVP is complete. Phase 5 is underway: synthetic data generation, Isolation Forest training, a versioned registry, standalone inference, optional score blending, and model evaluation are implemented. Model smoke tests and final documentation remain. See [PLAN.md](./PLAN.md) for the implementation sequence.
 
 ## Overview
 
@@ -26,11 +26,12 @@ Planned capabilities include:
 - Isolation Forest training from generated normal events (implemented)
 - Standalone model inference with a bounded anomaly risk score (implemented)
 - Optional weighted rule/ML score blending in login evaluation (implemented)
+- Precision, recall, ROC-AUC, and false-positive evaluation (implemented)
 - Additional login behavior features
-- Machine-learning anomaly scoring (in progress)
+- Optional machine-learning anomaly scoring (implemented)
 - Feedback and monitoring endpoints
 
-The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, synthetic training-data generator, Isolation Forest training script, versioned model registry, standalone inference service, and optional API score blending are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. Model evaluation and other planned capabilities are not yet available.
+The health endpoint, login-event evaluation, settings, API-key authentication, JSON request logging, event/profile data layer, repositories, Redis counters, standalone GeoLite2 lookup, user-agent parsing, feature calculations, IP reputation list matching, rule conditions, weighted scoring, local test page, synthetic training-data generator, Isolation Forest training script, versioned model registry, standalone inference service, optional API score blending, and model evaluation script are implemented. API scoring remains rule-only by default; enable `ML_ENABLED` after training a model. Model smoke tests and other planned capabilities remain.
 
 ## Prerequisites
 
@@ -191,14 +192,18 @@ After applying migrations and starting the API, open `http://127.0.0.1:8000/demo
 
 ## Model training
 
-Generate a deterministic CSV of numeric login features and normal/suspicious labels, then train an Isolation Forest using only the normal rows:
+Generate training data, train an Isolation Forest using only normal rows, then evaluate against a separate labeled dataset:
 
 ```powershell
 python scripts/generate_synthetic_data.py --output .\data\synthetic-login-events.csv --normal-count 1000 --suspicious-count 100 --seed 42
 python scripts/train.py --input .\data\synthetic-login-events.csv --output .\artifacts\model.joblib --seed 42
+python scripts/generate_synthetic_data.py --output .\data\evaluation-login-events.csv --normal-count 500 --suspicious-count 100 --seed 43
+python scripts/evaluate.py --input .\data\evaluation-login-events.csv --model-path .\artifacts\model.joblib --output .\artifacts\evaluation.json
 ```
 
-The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn` and uses `MODEL_PATH` as the base path for versioned artifacts, metadata, and the latest-version manifest. `InferenceService` loads the registered Isolation Forest and returns a bounded anomaly risk score from its decision function; this score is not a probability. Login evaluation blends rule and model scores only when `ML_ENABLED=true`; a missing or invalid registered model is surfaced rather than silently falling back to rule-only scoring. Evaluation is being implemented in the remaining Phase 5 steps.
+The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn`, defaults to 100 estimators and 2% contamination, and uses `MODEL_PATH` as the base path for versioned artifacts, metadata, and the latest-version manifest. Use a different seed and file for evaluation data to avoid evaluating on training examples. The JSON report includes precision, recall, ROC-AUC, false-positive rate, sample count, and model version. Synthetic results measure only the generated distributions and do not establish real-world model performance.
+
+`InferenceService` loads the registered Isolation Forest and returns a bounded anomaly risk score from its decision function; this score is not a probability. Login evaluation blends rule and model scores only when `ML_ENABLED=true`; a missing or invalid registered model is surfaced rather than silently falling back to rule-only scoring.
 
 ## Tests and quality checks
 
@@ -234,6 +239,7 @@ Current files:
 ├── app/
 │   ├── __init__.py
 │   ├── ml_data.py
+│   ├── ml_evaluation.py
 │   ├── ml_features.py
 │   ├── ml_inference.py
 │   ├── ml_training.py
@@ -264,6 +270,9 @@ Current files:
 ├── README.md
 ├── pyproject.toml
 ├── scripts/
+│   ├── evaluate.py
+│   ├── generate_synthetic_data.py
+│   └── train.py
 └── tests/
     ├── conftest.py
     ├── test_api.py
@@ -286,7 +295,7 @@ Current files:
 - **Evaluation requests return 503:** set a non-empty `API_KEY` in the environment or `.env`; the service fails closed when authentication is not configured.
 - **Evaluation requests fail with a database error:** run `alembic upgrade head` before starting the API.
 - **Redis connection errors:** start Redis at the configured `REDIS_URL` before using failed-attempt counters.
-- **Model scoring is unavailable:** leave `ML_ENABLED=false` for rule-only scoring; otherwise generate data and train a model before enabling it. Model evaluation is planned for Phase 5.6.
+- **ML-enabled evaluation fails:** generate data and train a model, then check the versioned files and manifest under `MODEL_PATH`; leave `ML_ENABLED=false` for rule-only behavior. Use a separately generated labeled dataset with `scripts/evaluate.py` to inspect model metrics.
 
 ## Privacy and security
 

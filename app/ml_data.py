@@ -1,4 +1,5 @@
 import csv
+import math
 import random
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -21,6 +22,12 @@ class SyntheticSample:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class LabeledDataset:
+    features: tuple[tuple[float, ...], ...]
+    labels: tuple[int, ...]
+
+
 def generate_samples(
     *,
     normal_count: int = 1000,
@@ -37,6 +44,33 @@ def generate_samples(
     )
     rng.shuffle(samples)
     return samples
+
+
+def load_labeled_dataset(input_path: Path) -> LabeledDataset:
+    feature_rows: list[tuple[float, ...]] = []
+    labels: list[int] = []
+    expected_fields = [*FEATURE_NAMES, "label"]
+    with input_path.open(newline="", encoding="utf-8") as input_file:
+        reader = csv.DictReader(input_file)
+        if reader.fieldnames != expected_fields:
+            raise ValueError(f"dataset columns must be exactly {expected_fields!r}")
+        for line_number, row in enumerate(reader, start=2):
+            label = row["label"]
+            if label not in {"0", "1"}:
+                raise ValueError(f"line {line_number}: label must be 0 or 1")
+            feature_rows.append(
+                tuple(
+                    _parse_feature(row[name], name, line_number)
+                    for name in FEATURE_NAMES
+                )
+            )
+            labels.append(int(label))
+
+    if labels.count(0) < 2:
+        raise ValueError("dataset must contain at least two normal rows")
+    if labels.count(1) == 0:
+        raise ValueError("dataset must contain at least one suspicious row")
+    return LabeledDataset(tuple(feature_rows), tuple(labels))
 
 
 def write_synthetic_dataset(
@@ -82,6 +116,7 @@ def _suspicious_context(rng: random.Random) -> RuleContext:
             "new_device_and_country",
             "high_risk_ip",
             "unusual_hour",
+            "subthreshold_combination",
         )
     )
     if attack_type == "impossible_travel":
@@ -94,4 +129,30 @@ def _suspicious_context(rng: random.Random) -> RuleContext:
         return replace(context, is_new_device=True, is_new_country=True)
     if attack_type == "high_risk_ip":
         return replace(context, is_high_risk_ip=True)
-    return replace(context, time_deviation_hours=rng.randint(6, 12))
+    if attack_type == "unusual_hour":
+        return replace(context, time_deviation_hours=rng.randint(6, 12))
+    return replace(
+        context,
+        impossible_travel_speed_kmh=rng.uniform(600, 900),
+        consecutive_failures=rng.randint(2, 4),
+        distinct_users_per_ip=rng.randint(3, 4),
+        is_new_device=True,
+        is_new_country=False,
+        time_deviation_hours=rng.randint(3, 5),
+    )
+
+
+def _parse_feature(value: str | None, name: str, line_number: int) -> float:
+    if value is None:
+        raise ValueError(f"line {line_number}: missing feature {name!r}")
+    try:
+        parsed = float(value)
+    except ValueError as error:
+        raise ValueError(
+            f"line {line_number}: feature {name!r} must be numeric"
+        ) from error
+    if not math.isfinite(parsed) or not 0 <= parsed <= 1:
+        raise ValueError(
+            f"line {line_number}: feature {name!r} must be between 0 and 1"
+        )
+    return parsed

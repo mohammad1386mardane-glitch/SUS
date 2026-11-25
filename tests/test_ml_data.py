@@ -33,21 +33,29 @@ def test_generate_samples_is_reproducible_and_contains_both_labels() -> None:
         for sample in first
         if sample.label == 0
     )
-    assert all(
-        (
-            sample.context.impossible_travel_speed_kmh is not None
-            and sample.context.impossible_travel_speed_kmh > 900
-        )
-        or sample.context.consecutive_failures >= 5
-        or sample.context.distinct_users_per_ip >= 5
-        or (sample.context.is_new_device and sample.context.is_new_country)
-        or sample.context.is_high_risk_ip
-        or (
-            sample.context.time_deviation_hours is not None
-            and sample.context.time_deviation_hours >= 6
-        )
-        for sample in first
+    extended = generate_samples(normal_count=1, suspicious_count=100, seed=19)
+    missed_by_rules = [
+        sample.context
+        for sample in extended
         if sample.label == 1
+        and sample.context.impossible_travel_speed_kmh is not None
+        and sample.context.impossible_travel_speed_kmh <= 900
+        and sample.context.consecutive_failures < 5
+        and sample.context.distinct_users_per_ip < 5
+        and not (sample.context.is_new_device and sample.context.is_new_country)
+        and not sample.context.is_high_risk_ip
+        and sample.context.time_deviation_hours is not None
+        and sample.context.time_deviation_hours < 6
+    ]
+    assert missed_by_rules
+    assert all(
+        600 <= context.impossible_travel_speed_kmh <= 900
+        and 2 <= context.consecutive_failures <= 4
+        and 3 <= context.distinct_users_per_ip <= 4
+        and context.is_new_device
+        and context.time_deviation_hours is not None
+        and 3 <= context.time_deviation_hours <= 5
+        for context in missed_by_rules
     )
 
 

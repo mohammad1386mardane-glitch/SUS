@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 5 — Machine Learning Model
 - **Latest tag:** `v0.4.0`
-- **Current step:** 5.6 — add evaluation script
+- **Current step:** 5.7 — add model smoke tests
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -42,7 +42,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `tests/test_user_agent.py` — user-agent parsing and device-class tests
 - `tests/test_features.py` — travel-speed and feature-calculation tests
 - `tests/test_ip_reputation.py` — high-risk IP/CIDR membership tests
-- `scripts/` — maintenance and model scripts; includes `generate_synthetic_data.py` and `train.py`
+- `scripts/` — maintenance and model scripts; includes `generate_synthetic_data.py`, `train.py`, and `evaluate.py`
 - `docs/` — supplementary documentation
 - Root — project metadata, environment template, license, plan, and setup guides
 
@@ -87,6 +87,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Store each trained model as an immutable versioned artifact with versioned metadata and update a stable JSON manifest last. | Consumers can resolve the current version through `MODEL_PATH` without overwriting prior model files; writing the manifest last avoids advertising incomplete artifacts. |
 | 2026-11-25 | Map Isolation Forest decision margins to a bounded 0–100 anomaly score using a logistic transform calibrated to the median normal training margin. | A decision margin of zero maps to 50, while the median training-normal margin maps to 5; the output is a risk score, not a probability. |
 | 2026-11-25 | Keep ML scoring opt-in with `ML_ENABLED=false` by default and blend scores at 60% rules / 40% ML when enabled. | Existing API behavior remains unchanged until operators train a model and explicitly enable inference; missing enabled models fail explicitly. |
+| 2026-11-25 | Set the Isolation Forest contamination default to 2% and report false-positive rate alongside planned evaluation metrics. | On the deterministic 500-normal/100-suspicious synthetic holdout, seed 42 training produced 1.4% false positives; this is a synthetic-only check, not a real-world performance claim. |
 
 ## Work Log
 
@@ -141,6 +142,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(ml): add model registry (versioned artifacts)` | Added versioned model files, validated metadata, latest-model manifest, and registry-backed training output. | `app/model_registry.py`, `app/ml_training.py`, `scripts/train.py`, `tests/test_model_registry.py`, `tests/test_ml_training.py`, `.env.example`, `README.md`, `AGENTS.md`, `PLAN.md` | 11 focused tests passed; Ruff, mypy, pre-commit, and end-to-end generation/training/registry checks passed | `MODEL_PATH` is now the stable base path; numbered artifact and metadata files are retained, and `model.json` selects the latest version. |
 | 2026-11-25 | Copilot SDK | `feat(ml): add inference service` | Added validated latest-model loading, feature-schema checks, and calibrated bounded anomaly scoring. | `app/ml_inference.py`, `app/ml_training.py`, `app/model_registry.py`, `tests/test_ml_inference.py`, `tests/test_ml_training.py`, `tests/test_model_registry.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 14 focused tests passed; Ruff, mypy, and pre-commit passed; normal and anomalous inference paths exercised | The service is standalone; the API remains rule-only until score blending in step 5.5. |
 | 2026-11-25 | Copilot SDK | `feat(scoring): blend rules + ML score` | Added validated weighted blending and optional model inference in login evaluation, including an anomaly reason. | `app/scoring.py`, `app/settings.py`, `app/evaluation.py`, `.env.example`, `tests/test_scoring.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest` on scoring, API, and ML tests: 52 passed; Ruff, mypy, and pre-commit passed | `ML_ENABLED` defaults to false; enabled evaluation uses 60% rule score and 40% model score. |
+| 2026-11-25 | Copilot SDK | `feat(ml): add evaluation script` | Added shared strict CSV loading, holdout precision/recall/ROC-AUC/false-positive metrics, and an evaluation CLI; added suspicious feature combinations that remain below individual rule thresholds. | `app/ml_data.py`, `app/ml_training.py`, `app/ml_inference.py`, `app/ml_evaluation.py`, `scripts/evaluate.py`, `tests/test_ml_evaluation.py`, `tests/test_ml_data.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 53 selected tests passed; Ruff and mypy passed; generation, training, and evaluation CLIs passed; holdout FPR 1.4%, precision 83.7%, recall 36%, ROC-AUC 85.3% | Holdout used separate seeded synthetic data; metrics are illustrative and do not establish real-world performance. |
 
 ## Open Questions
 
