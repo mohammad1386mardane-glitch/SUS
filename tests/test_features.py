@@ -2,7 +2,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.features import required_travel_speed_kmh
+from app.db.models import UserProfile
+from app.features import (
+    NewLoginSignals,
+    detect_new_login_signals,
+    required_travel_speed_kmh,
+)
 from app.geoip import GeoIPResult
 
 
@@ -117,3 +122,53 @@ def test_required_travel_speed_rejects_invalid_coordinates(
             timestamp,
             timestamp + timedelta(hours=1),
         )
+
+
+@pytest.mark.parametrize(
+    ("device_id", "country_code", "profile", "expected"),
+    [
+        (
+            "device-1",
+            "us",
+            UserProfile(
+                user_id="user-1",
+                usual_devices=["device-1"],
+                usual_countries=["US"],
+            ),
+            NewLoginSignals(False, False),
+        ),
+        (
+            "device-2",
+            "US",
+            UserProfile(
+                user_id="user-1",
+                usual_devices=["device-1"],
+                usual_countries=["US"],
+            ),
+            NewLoginSignals(True, False),
+        ),
+        (
+            "device-1",
+            "CA",
+            UserProfile(
+                user_id="user-1",
+                usual_devices=["device-1"],
+                usual_countries=["US"],
+            ),
+            NewLoginSignals(False, True),
+        ),
+        ("device-1", None, None, NewLoginSignals(True, False)),
+    ],
+)
+def test_detect_new_login_signals_compares_profile_history(
+    device_id: str,
+    country_code: str | None,
+    profile: UserProfile | None,
+    expected: NewLoginSignals,
+) -> None:
+    assert detect_new_login_signals(device_id, country_code, profile) == expected
+
+
+def test_detect_new_login_signals_rejects_blank_device_ids() -> None:
+    with pytest.raises(ValueError, match="device_id cannot be empty"):
+        detect_new_login_signals(" ", "US", None)

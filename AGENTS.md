@@ -8,7 +8,7 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 - **Current phase:** Phase 3 — Feature Engineering
 - **Latest tag:** `v0.2.0`
-- **Current step:** 3.4 — add new device / new country flags
+- **Current step:** 3.5 — add time-of-day deviation
 - **Blockers:** GeoLite2 lookups require a locally obtained City database at `GEOIP_DB_PATH`; setup instructions are planned for step 3.9. Risk scoring remains planned for Phase 4.
 
 ## Coding Conventions
@@ -61,6 +61,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Use MaxMind's `geoip2` reader with the configured GeoLite2 City database; return `None` for addresses without records and surface database/configuration errors. | Callers can distinguish an unlisted address from a broken or missing database without the lookup silently hiding operational failures. |
 | 2026-11-25 | Use the `user-agents` parser for browser/OS families and prioritize bot, tablet, mobile, then desktop device classes. | The feature output is stable and typed, while unknown user-agent strings remain representable as `Other`/`other`. |
 | 2026-11-25 | Calculate travel speed using Haversine distance (mean Earth radius 6371.0088 km), timezone-aware increasing timestamps, and return no speed when coordinates are unavailable. | These rules make the result reproducible and prevent invalid timestamps or missing GeoIP data from becoming misleading velocity values. |
+| 2026-11-25 | Treat a missing profile as empty history for device/country novelty; compare opaque device IDs exactly and country codes case-insensitively; missing country data is not a new-country signal. | New-account signals remain explicit without treating unavailable GeoIP as evidence of novelty. |
 
 ## Work Log
 
@@ -94,6 +95,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(geo): integrate GeoLite2` | Added a typed MaxMind City lookup using `GEOIP_DB_PATH`, with explicit handling for unlisted addresses and no silent database-error fallback; configured the isolated mypy hook and aligned Ruff versions, including import normalization. | `app/geoip.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `tests/test_geoip.py`, `tests/conftest.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 20 passed; Ruff, mypy, pre-commit, and Pylance diagnostics pass | GeoLite2 City database files are not included; README setup details are scheduled for step 3.9. |
 | 2026-11-25 | Copilot SDK | `feat(features): add user-agent parsing` | Added a typed user-agent helper for browser/OS families and bot/tablet/mobile/desktop classification with explicit empty-input validation. | `app/user_agent.py`, `pyproject.toml`, `.pre-commit-config.yaml`, `tests/test_user_agent.py`, `README.md`, `AGENTS.md`, `PLAN.md` | User-agent tests: 7 passed; Ruff, mypy, and Pylance diagnostics pass | Parser output was verified for desktop, phone, tablet, bot, and unknown user-agent strings. |
 | 2026-11-25 | Copilot SDK | `feat(features): add impossible-travel feature` | Added timezone-aware Haversine travel-speed calculation with explicit handling for missing coordinates, invalid ranges, and non-positive durations. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Impossible-travel tests: 9 passed; Ruff and mypy passed | Dateline crossing and equatorial distance cases verify the shortest geographic path and km/h output. |
+| 2026-11-25 | Copilot SDK | `feat(features): add new device / new country flags` | Added profile comparisons for unseen device IDs and ISO country codes, including missing-profile and missing-country semantics. | `app/features.py`, `tests/test_features.py`, `README.md`, `AGENTS.md`, `PLAN.md` | Feature tests: 14 passed; Ruff, mypy, and Pylance diagnostics pass | Device IDs are opaque and match exactly; country codes are normalized case-insensitively. |
 
 ## Open Questions
 

@@ -1,9 +1,17 @@
+from dataclasses import dataclass
 from datetime import datetime
 from math import atan2, cos, isfinite, radians, sin, sqrt
 
+from app.db.models import UserProfile
 from app.geoip import GeoIPResult
 
 _EARTH_RADIUS_KM = 6371.0088
+
+
+@dataclass(frozen=True, slots=True)
+class NewLoginSignals:
+    is_new_device: bool
+    is_new_country: bool
 
 
 def required_travel_speed_kmh(
@@ -42,10 +50,7 @@ def required_travel_speed_kmh(
     if not -180 <= previous_longitude <= 180 or not -180 <= current_longitude <= 180:
         raise ValueError("longitude must be between -180 and 180 degrees")
 
-    if (
-        previous_timestamp.utcoffset() is None
-        or current_timestamp.utcoffset() is None
-    ):
+    if previous_timestamp.utcoffset() is None or current_timestamp.utcoffset() is None:
         raise ValueError("timestamps must be timezone-aware")
 
     elapsed_seconds = (current_timestamp - previous_timestamp).total_seconds()
@@ -59,6 +64,35 @@ def required_travel_speed_kmh(
         current_longitude,
     )
     return distance_km / (elapsed_seconds / 3600)
+
+
+def detect_new_login_signals(
+    device_id: str,
+    country_code: str | None,
+    profile: UserProfile | None,
+) -> NewLoginSignals:
+    if not device_id.strip():
+        raise ValueError("device_id cannot be empty")
+
+    usual_devices = set(profile.usual_devices) if profile is not None else set()
+    usual_countries = (
+        {
+            country.strip().upper()
+            for country in profile.usual_countries
+            if country.strip()
+        }
+        if profile is not None
+        else set()
+    )
+    normalized_country = country_code.strip().upper() if country_code else None
+    normalized_country = normalized_country or None
+
+    return NewLoginSignals(
+        is_new_device=device_id not in usual_devices,
+        is_new_country=(
+            normalized_country is not None and normalized_country not in usual_countries
+        ),
+    )
 
 
 def _distance_km(
