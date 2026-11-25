@@ -203,7 +203,7 @@ python scripts/evaluate.py --input .\data\evaluation-login-events.csv --model-pa
 
 The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn`, defaults to 100 estimators and 2% contamination, and uses `MODEL_PATH` as the base path for versioned artifacts, metadata, and the latest-version manifest. Use a different seed and file for evaluation data to avoid evaluating on training examples. The JSON report includes precision, recall, ROC-AUC, false-positive rate, sample count, and model version. Synthetic results measure only the generated distributions and do not establish real-world model performance.
 
-`InferenceService` loads the registered Isolation Forest and returns a bounded anomaly risk score from its decision function; this score is not a probability. Login evaluation blends rule and model scores only when `ML_ENABLED=true`; a missing or invalid registered model is surfaced rather than silently falling back to rule-only scoring.
+`InferenceService` loads the registered Isolation Forest and returns a bounded anomaly risk score from its decision function; this score is not a probability. Login evaluation remains rule-only unless `ML_ENABLED=true`; when enabled it combines 60% rule score with 40% model score. A missing or invalid registered model is surfaced rather than silently falling back to rule-only scoring.
 
 ## Tests and quality checks
 

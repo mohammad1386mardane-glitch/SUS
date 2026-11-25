@@ -213,7 +213,9 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 5.5 | `feat(scoring): blend rules + ML score` | e.g. `0.6 * rules + 0.4 * ml` | ✅ |
 | 5.6 | `feat(ml): add evaluation script` | precision / recall / ROC-AUC | ✅ |
 | 5.7 | `test(ml): add model smoke tests` | Output stays within valid range | ✅ |
-| 5.8 | `docs: update README (train/evaluate) and AGENTS` | Train/evaluate commands and `MODEL_PATH` | ⬜ |
+| 5.8 | `docs: update README (train/evaluate) and AGENTS` | Train/evaluate commands and `MODEL_PATH` | ✅ |
+
+> 🏷️ **Phase 5 complete:** release tag `v0.5.0`
 
 ## Phase 6: Feedback and Monitoring
 **Goal:** learn from mistakes and observe service health.

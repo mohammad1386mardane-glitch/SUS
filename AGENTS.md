@@ -6,9 +6,9 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 
 ## Current Status
 
-- **Current phase:** Phase 5 — Machine Learning Model
-- **Latest tag:** `v0.4.0`
-- **Current step:** 5.8 — update ML training and evaluation documentation
+- **Current phase:** Phase 5 — Machine Learning Model (complete)
+- **Latest tag:** `v0.5.0`
+- **Current step:** Phase 5 complete; next planned: Phase 6.1 — add feedback endpoint
 - **Blockers:** None. GeoIP lookups require a separately obtained GeoLite2 City database when enabled; live PostgreSQL and Redis servers were not used for integration testing.
 
 ## Coding Conventions
@@ -36,6 +36,10 @@ Suspicious Login Detection API: a FastAPI service that evaluates login events an
 - `app/scoring.py` — capped weighted scoring and configurable decision thresholds
 - `app/model_registry.py` — versioned model artifacts, validated metadata, and latest manifest
 - `app/ml_inference.py` — registered Isolation Forest loading and bounded anomaly scoring
+- `app/ml_data.py` — reproducible synthetic data and strict labeled CSV loading
+- `app/ml_features.py` — normalized model feature schema and context conversion
+- `app/ml_training.py` — normal-only Isolation Forest training
+- `app/ml_evaluation.py` — labeled holdout metrics and model evaluation
 - `alembic/` — schema migration environment and revisions
 - `tests/` — API and data-layer tests
 - `tests/test_geoip.py` — GeoLite2 lookup unit tests using a stub reader
@@ -82,7 +86,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Compare login-hour profiles in UTC and calculate distance to the nearest usual hour on a circular 24-hour clock. | The profile schema has no timezone field, so UTC provides a consistent basis for both observed login hours and feature evaluation. |
 | 2026-11-25 | Store rolling failure events in hashed Redis sorted sets, use inclusive 1/5/60-minute score windows, and expire the set after one hour. | Sorted sets preserve event timestamps for genuine rolling counts, unlike the existing fixed-window counter; Lua keeps writes and multi-window reads atomic. |
 | 2026-11-25 | Make IP reputation matching accept a caller-supplied IPv4/IPv6 address/CIDR list and ship no reputation feed. | No trusted VPN/Tor/proxy source or update policy is specified, so the matcher stays reusable without embedding stale or unverified classifications. |
-| 2026-11-25 | Train Isolation Forest on only labeled normal rows, using seed 42, 100 estimators, and 5% contamination by default. | Isolation Forest is unsupervised; suspicious labels remain available for evaluation, while deterministic defaults make local retraining repeatable. |
+| 2026-11-25 | Train Isolation Forest on only labeled normal rows, using seed 42 and 100 estimators; the initial 5% contamination default was superseded by the 2% default decision in step 5.6. | Isolation Forest is unsupervised; suspicious labels remain available for evaluation, while deterministic defaults make local retraining repeatable. |
 | 2026-11-25 | Keep synthetic normal examples below every configured rule threshold, and ensure the distinct-user count includes at least the current user. | This keeps synthetic labels aligned with rule behavior and mirrors the API's observed per-IP count semantics. |
 | 2026-11-25 | Store each trained model as an immutable versioned artifact with versioned metadata and update a stable JSON manifest last. | Consumers can resolve the current version through `MODEL_PATH` without overwriting prior model files; writing the manifest last avoids advertising incomplete artifacts. |
 | 2026-11-25 | Map Isolation Forest decision margins to a bounded 0–100 anomaly score using a logistic transform calibrated to the median normal training margin. | A decision margin of zero maps to 50, while the median training-normal margin maps to 5; the output is a risk score, not a probability. |
@@ -144,6 +148,7 @@ From the activated project virtual environment, install the project with `python
 | 2026-11-25 | Copilot SDK | `feat(scoring): blend rules + ML score` | Added validated weighted blending and optional model inference in login evaluation, including an anomaly reason. | `app/scoring.py`, `app/settings.py`, `app/evaluation.py`, `.env.example`, `tests/test_scoring.py`, `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | `pytest` on scoring, API, and ML tests: 52 passed; Ruff, mypy, and pre-commit passed | `ML_ENABLED` defaults to false; enabled evaluation uses 60% rule score and 40% model score. |
 | 2026-11-25 | Copilot SDK | `feat(ml): add evaluation script` | Added shared strict CSV loading, holdout precision/recall/ROC-AUC/false-positive metrics, and an evaluation CLI; added suspicious feature combinations that remain below individual rule thresholds. | `app/ml_data.py`, `app/ml_training.py`, `app/ml_inference.py`, `app/ml_evaluation.py`, `scripts/evaluate.py`, `tests/test_ml_evaluation.py`, `tests/test_ml_data.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 53 selected tests passed; Ruff and mypy passed; generation, training, and evaluation CLIs passed; holdout FPR 1.4%, precision 83.7%, recall 36%, ROC-AUC 85.3% | Holdout used separate seeded synthetic data; metrics are illustrative and do not establish real-world performance. |
 | 2026-11-25 | Copilot SDK | `test(ml): add model smoke tests` | Added a real-model API smoke test that trains a versioned artifact, enables ML inference, and verifies the blended API response stays in range. | `tests/test_api.py`, `README.md`, `AGENTS.md`, `PLAN.md` | 42 API, inference, and scoring tests passed; Ruff, mypy, and pre-commit passed | Test trains a temporary synthetic model and exercises registry-backed inference end to end without changing the default rule-only API configuration. |
+| 2026-11-25 | Copilot SDK | `docs: update README (train/evaluate) and AGENTS` | Documented the reproducible generation, training, separate holdout evaluation, versioned `MODEL_PATH` registry, opt-in 60/40 blending, and synthetic-metric limitations; marked Phase 5 complete. | `README.md`, `AGENTS.md`, `PLAN.md` | `pytest -q`: 136 passed; Ruff, mypy, and pre-commit passed; documented CLI workflow passed with separate data files (FPR 1.4%, precision 85.4%, recall 41%, ROC-AUC 80.9%) | Metrics are only representative of the deterministic synthetic distribution and do not establish real-world performance. |
 
 ## Open Questions
 
