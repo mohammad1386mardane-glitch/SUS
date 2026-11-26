@@ -26,6 +26,8 @@ def test_generate_samples_is_reproducible_and_contains_both_labels() -> None:
     assert all(
         sample.context.consecutive_failures < 5
         and sample.context.distinct_users_per_ip < 5
+        and sample.context.distinct_failed_users_per_ip < 5
+        and sample.context.distinct_failed_devices_per_ip < 5
         and not (sample.context.is_new_device and sample.context.is_new_country)
         and not sample.context.is_high_risk_ip
         and sample.context.time_deviation_hours is not None
@@ -42,6 +44,8 @@ def test_generate_samples_is_reproducible_and_contains_both_labels() -> None:
         and sample.context.impossible_travel_speed_kmh <= 900
         and sample.context.consecutive_failures < 5
         and sample.context.distinct_users_per_ip < 5
+        and sample.context.distinct_failed_users_per_ip < 5
+        and sample.context.distinct_failed_devices_per_ip < 5
         and not (sample.context.is_new_device and sample.context.is_new_country)
         and not sample.context.is_high_risk_ip
         and sample.context.time_deviation_hours is not None
@@ -92,6 +96,8 @@ def test_features_from_context_maps_optional_and_capped_signals() -> None:
             impossible_travel_speed_kmh=3600,
             consecutive_failures=5,
             distinct_users_per_ip=2,
+            distinct_failed_users_per_ip=2,
+            distinct_failed_devices_per_ip=2,
             is_new_device=True,
             time_deviation_hours=None,
         )
@@ -106,3 +112,25 @@ def test_features_from_context_maps_optional_and_capped_signals() -> None:
         "is_high_risk_ip": 0.0,
         "time_deviation_ratio": 0.0,
     }
+
+
+def test_distinct_user_model_feature_requires_failed_user_and_device_diversity() -> (
+    None
+):
+    successful_shared_ip = features_from_context(RuleContext(distinct_users_per_ip=10))
+    one_shared_device = features_from_context(
+        RuleContext(
+            distinct_failed_users_per_ip=10,
+            distinct_failed_devices_per_ip=1,
+        )
+    )
+    varied_failed_users_and_devices = features_from_context(
+        RuleContext(
+            distinct_failed_users_per_ip=8,
+            distinct_failed_devices_per_ip=6,
+        )
+    )
+
+    assert successful_shared_ip["distinct_users_per_ip_ratio"] == 0
+    assert one_shared_device["distinct_users_per_ip_ratio"] == 0.1
+    assert varied_failed_users_and_devices["distinct_users_per_ip_ratio"] == 0.6

@@ -5,6 +5,7 @@ from app.rules.impossible_travel import ImpossibleTravelRule
 from app.rules.new_device_country import NewDeviceAndCountryRule
 from app.rules.registry import RuleRegistry
 from app.rules.unusual_hour import UnusualHourRule
+from app.rules.user_agent_profile_change import UserAgentProfileChangeRule
 
 __all__ = [
     "BruteForceRule",
@@ -15,4 +16,5 @@ __all__ = [
     "RuleContext",
     "RuleRegistry",
     "UnusualHourRule",
+    "UserAgentProfileChangeRule",
 ]

@@ -60,3 +60,26 @@ def parse_user_agent(user_agent: str) -> UserAgentFeatures:
         operating_system=parsed.os.family,
         device_type=device_type,
     )
+
+
+def suspicious_user_agent_profile_change(
+    current_user_agent: str,
+    previous_user_agent: str,
+) -> bool:
+    if not current_user_agent.strip() or not previous_user_agent.strip():
+        return False
+
+    current = parse_user_agent(current_user_agent)
+    previous = parse_user_agent(previous_user_agent)
+    changed_dimensions = (
+        current.browser != previous.browser
+        and current.browser != "Other"
+        and previous.browser != "Other",
+        current.operating_system != previous.operating_system
+        and current.operating_system != "Other"
+        and previous.operating_system != "Other",
+        current.device_type != previous.device_type
+        and current.device_type != "other"
+        and previous.device_type != "other",
+    )
+    return sum(changed_dimensions) >= 2

@@ -37,6 +37,13 @@ class LoginEventRequest(BaseModel):
             raise ValueError("timestamp must be timezone-aware")
         return value
 
+    @field_validator("user_agent")
+    @classmethod
+    def require_non_blank_user_agent(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("user_agent cannot be empty")
+        return value
+
 
 class LoginEventResponse(BaseModel):
     model_config = ConfigDict(

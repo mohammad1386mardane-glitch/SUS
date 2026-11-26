@@ -87,6 +87,32 @@ class LoginEventRepository:
         )
         return set(self.session.scalars(statement))
 
+    def failed_user_device_pairs_for_ip_between(
+        self,
+        ip: str,
+        since: datetime,
+        before: datetime,
+    ) -> set[tuple[str, str]]:
+        if since.utcoffset() is None or before.utcoffset() is None:
+            raise ValueError("time bounds must be timezone-aware")
+        if since >= before:
+            raise ValueError("since must be before before")
+
+        statement = (
+            select(LoginEvent.user_id, LoginEvent.device_id)
+            .where(
+                LoginEvent.ip == ip,
+                LoginEvent.timestamp >= since,
+                LoginEvent.timestamp < before,
+                LoginEvent.success.is_(False),
+            )
+            .distinct()
+        )
+        return {
+            (user_id, device_id)
+            for user_id, device_id in self.session.execute(statement)
+        }
+
 
 class UserProfileRepository:
     def __init__(self, session: Session) -> None:

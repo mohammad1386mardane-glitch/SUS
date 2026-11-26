@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from app.ml_features import FEATURE_NAMES
+from app.ml_features import FEATURE_NAMES, FEATURE_SCHEMA_VERSION
 from app.model_registry import ModelRegistry
 
 
@@ -39,6 +39,7 @@ def test_registry_saves_versioned_artifacts_and_latest_metadata(
     assert latest == second
     assert latest is not None
     assert latest.metadata.feature_names == FEATURE_NAMES
+    assert latest.metadata.feature_schema_version == FEATURE_SCHEMA_VERSION
     assert latest.metadata.normal_rows == 30
     assert latest.metadata.created_at.utcoffset() is not None
     assert registry.manifest_path.is_file()

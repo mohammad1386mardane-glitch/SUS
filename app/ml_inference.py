@@ -7,7 +7,11 @@ from pathlib import Path
 import joblib
 from sklearn.ensemble import IsolationForest
 
-from app.ml_features import FEATURE_NAMES, features_from_context
+from app.ml_features import (
+    FEATURE_NAMES,
+    FEATURE_SCHEMA_VERSION,
+    features_from_context,
+)
 from app.model_registry import ModelRegistry
 from app.rules.base import RuleContext
 
@@ -38,6 +42,12 @@ class InferenceService:
         if registered.metadata.model_type != _MODEL_TYPE:
             raise ValueError(
                 f"unsupported registered model type: {registered.metadata.model_type}"
+            )
+        if registered.metadata.feature_schema_version != FEATURE_SCHEMA_VERSION:
+            raise ValueError(
+                "registered model feature schema version "
+                f"{registered.metadata.feature_schema_version} does not match "
+                f"current version {FEATURE_SCHEMA_VERSION}"
             )
         if registered.metadata.feature_names != FEATURE_NAMES:
             raise ValueError(

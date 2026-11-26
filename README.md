@@ -14,7 +14,7 @@ Implemented capabilities include:
 - SQLAlchemy event/profile tables and repositories (implemented)
 - Redis failed-attempt counter helpers with TTL and rolling windows
 - MaxMind GeoLite2 IP lookup for country, city, and coordinates (implemented)
-- User-agent parsing for browser, OS, and device type (implemented)
+- User-agent parsing and same-device profile-change scoring (implemented)
 - Required travel-speed calculation between two located logins (implemented)
 - New-device and new-country profile comparisons (implemented)
 - Profile learning from confirmed low-risk logins (implemented)
@@ -106,6 +106,7 @@ Settings are loaded from environment variables or a `.env` file using `pydantic-
 | `RATE_LIMIT_ENABLED` | Enforce a shared Redis fixed-window limit per valid API key | Default: `false`; requires Redis when enabled |
 | `RATE_LIMIT_MAX_REQUESTS` | Maximum protected requests allowed per API key in one window | Default: `100`; must be at least `1` |
 | `RATE_LIMIT_WINDOW_SECONDS` | Fixed-window duration for API-key rate limits | Default: `60`; must be at least `1` |
+| `CREDENTIAL_STUFFING_WINDOW_SECONDS` | Lookback window for failed shared-IP account/device diversity | Default: `300`; must be at least `1` |
 | `API_KEY` | API-key authentication secret for protected API routes | Required; when empty, protected requests return `503 Service Unavailable` |
 
 `API_KEY` is stored as a secret value and is not included in its normal string representation. Do not put a real key in source control.
@@ -134,7 +135,7 @@ GeoLite locations are approximate areas, not precise addresses or households; tr
 
 ## User-agent parsing
 
-`parse_user_agent` returns the parsed browser family, operating-system family, and a device class (`bot`, `tablet`, `mobile`, `desktop`, or `other`). Unknown non-empty strings produce `Other` browser/OS families and the `other` class; empty or whitespace-only input raises `ValueError`. This helper is not yet wired into the login-evaluation endpoint.
+`parse_user_agent` returns browser and operating-system families plus a device class (`bot`, `tablet`, `mobile`, `desktop`, or `other`). During evaluation, the service compares those features with the most recent prior event for the same device among the user's four most recent events. It adds 15 points with reason `user_agent_profile_change` only when at least two recognized dimensions change on a device already present in the user's trusted profile. Browser-version updates and single-dimension changes do not score; new devices are handled by the existing device/country rule instead. Unknown non-empty strings produce `Other` families and the `other` class and do not trigger this rule. Missing or whitespace-only User-Agent values are rejected as invalid requests.
 
 `required_travel_speed_kmh` computes the Haversine distance between two GeoIP results and divides by the elapsed time. It returns `None` when either location or its coordinates are missing, requires timezone-aware timestamps in increasing order, and reports speed in km/h. Login evaluation uses this helper when GeoIP is enabled and a previous located event exists.
 
@@ -152,7 +153,7 @@ alembic upgrade head
 
 The migration command and schema checks were verified with SQLite. The PostgreSQL driver is configured, but a live PostgreSQL connection has not been exercised. The `login_events` table stores event details, optional JSON geographic data, and validated risk output. Each `user_profiles` row stores a user's usual countries, devices, and login hours as JSON arrays.
 
-`LoginEventRepository` provides event insertion, lookup, paginated per-user history, prior-event lookup, and distinct-user queries by IP/time window; `UserProfileRepository` loads and saves profiles. Repository methods flush changes, while the caller owns the session transaction and commit. Login evaluation commits its stored result after computing the score.
+`LoginEventRepository` provides event insertion, lookup, paginated per-user history, prior-event lookup, distinct-user queries, and failed user/device-pair queries by IP/time window; `UserProfileRepository` loads and saves profiles. Repository methods flush changes, while the caller owns the session transaction and commit. Login evaluation commits its stored result after computing the score.
 
 `FailedAttemptCounter` stores per-user counters in Redis with a configurable fixed-window TTL. User identifiers are hashed in Redis keys; the counter sets the expiry atomically on the first failure in each window. Separate window lengths use separate counters. A Redis server must be available when these counters are used. Login evaluation currently uses stored events for brute-force and credential-stuffing signals and does not depend on Redis.
 
@@ -162,7 +163,7 @@ The migration command and schema checks were verified with SQLite. The PostgreSQ
 
 ## Rule engine
 
-Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. `ImpossibleTravelRule` triggers strictly above 900 km/h with weight 40. `BruteForceRule` triggers at five consecutive failures or five distinct users from one IP within five minutes, with weight 60. `NewDeviceAndCountryRule` triggers only when both signals are true, with weight 30. `HighRiskIPRule` triggers on a supplied high-risk IP match, with weight 40. `UnusualHourRule` triggers at a six-hour or greater deviation from a user's usual UTC login hours, with weight 15.
+Rules receive an immutable `RuleContext` containing precomputed login signals. Each rule has a unique name, an integer weight from 0 to 100, and a condition; `RuleRegistry` evaluates rules in registration order and returns the matches. `ImpossibleTravelRule` triggers strictly above 900 km/h with weight 40. `BruteForceRule` triggers at five consecutive failures, or when at least five distinct users and five distinct devices have failed from the same IP within `CREDENTIAL_STUFFING_WINDOW_SECONDS` (default 300), with weight 60. Successful logins do not count toward the shared-IP condition, reducing false positives on office, campus, and household networks. The API reports `credential_stuffing_multiple_users_and_devices` for that condition; if both brute-force conditions match, the rule's 60-point weight is still counted only once. `UserAgentProfileChangeRule` adds 15 points when at least two known User-Agent dimensions change on a trusted, previously seen device; it does not duplicate new-device risk. `NewDeviceAndCountryRule` triggers only when both signals are true, with weight 30. `HighRiskIPRule` triggers on a supplied high-risk IP match, with weight 40. `UnusualHourRule` triggers at a six-hour or greater deviation from a user's usual UTC login hours, with weight 15.
 
 `aggregate_score` sums the weights of triggered rules and caps the score at 100. `score_to_decision` uses `ALLOW_MAX_SCORE` and `CHALLENGE_MAX_SCORE`, defaulting to `0–39 → allow`, `40–78 → challenge`, and `79–100 → deny`. Both threshold values are validated at startup and can be overridden with environment variables. Login evaluation builds rule context from saved event history, user profiles, and configured GeoIP/reputation sources, then stores the evaluation result.
 
@@ -239,7 +240,7 @@ python scripts/evaluate.py --input .\data\evaluation-login-events.csv --model-pa
 
 The generated dataset contains no real users, IP addresses, or credentials and is written under the git-ignored `data/` directory by default. Training requires `scikit-learn`, defaults to 100 estimators and 2% contamination, and uses `MODEL_PATH` as the base path for versioned artifacts, metadata, and the latest-version manifest. Use a different seed and file for evaluation data to avoid evaluating on training examples. The JSON report includes precision, recall, ROC-AUC, false-positive rate, sample count, and model version. Synthetic results measure only the generated distributions and do not establish real-world model performance.
 
-`InferenceService` loads the registered Isolation Forest and returns a bounded anomaly risk score from its decision function; this score is not a probability. Login evaluation remains rule-only unless `ML_ENABLED=true`; when enabled it combines 60% rule score with 40% model score. A missing or invalid registered model is surfaced rather than silently falling back to rule-only scoring.
+`InferenceService` loads the registered Isolation Forest and returns a bounded anomaly risk score from its decision function; this score is not a probability. Its shared-IP identity-diversity feature uses the lower of the distinct failed-user and failed-device counts, so successful shared-IP activity and repeated failures from just one account or device do not activate that feature. Registered metadata records `feature_schema_version`; inference requires an exact match with the current schema. Metadata without a version is treated as legacy version 1 and rejected by the current version 2 inference code. Legacy models are not automatically retrained or replaced; train and register a compatible model before enabling ML. Login evaluation remains rule-only unless `ML_ENABLED=true`; when enabled it combines 60% rule score with 40% model score. A missing or invalid registered model is surfaced rather than silently falling back to rule-only scoring.
 
 ## Tests and quality checks
 

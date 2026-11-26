@@ -1,9 +1,10 @@
+import json
 from pathlib import Path
 
 import pytest
 
 from app.ml_data import write_synthetic_dataset
-from app.ml_features import FEATURE_NAMES
+from app.ml_features import FEATURE_NAMES, FEATURE_SCHEMA_VERSION
 from app.ml_inference import InferenceService
 from app.ml_training import train_isolation_forest
 from app.model_registry import ModelRegistry
@@ -23,6 +24,7 @@ def test_inference_returns_bounded_score_for_normal_and_anomalous_contexts(
     )
     train_isolation_forest(input_path, model_base_path, random_state=31)
     service = InferenceService(model_base_path)
+    registered_model = ModelRegistry(model_base_path).latest()
 
     normal = service.score(
         RuleContext(
@@ -34,6 +36,8 @@ def test_inference_returns_bounded_score_for_normal_and_anomalous_contexts(
     anomalous = service.score(RuleContext(is_high_risk_ip=True))
 
     assert normal.model_version == anomalous.model_version == 1
+    assert registered_model is not None
+    assert registered_model.metadata.feature_schema_version == FEATURE_SCHEMA_VERSION
     assert 0 <= normal.risk_score <= 100
     assert 0 <= anomalous.risk_score <= 100
     assert normal.is_anomaly == (normal.decision_function < 0)
@@ -73,4 +77,48 @@ def test_inference_rejects_artifacts_with_a_different_feature_schema(
     )
 
     with pytest.raises(ValueError, match="features do not match"):
+        InferenceService(model_base_path).score(RuleContext())
+
+
+def test_inference_rejects_legacy_model_metadata_without_schema_version(
+    tmp_path: Path,
+) -> None:
+    model_base_path = tmp_path / "legacy-model.joblib"
+    registered = ModelRegistry(model_base_path).register(
+        {"not": "an IsolationForest"},
+        model_type="sklearn.ensemble.IsolationForest",
+        normal_rows=20,
+        suspicious_rows=5,
+        random_state=42,
+        contamination=0.05,
+        calibration_scale=0.05,
+    )
+    metadata = json.loads(registered.metadata_path.read_text(encoding="utf-8"))
+    metadata.pop("feature_schema_version")
+    registered.metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    legacy = ModelRegistry(model_base_path).latest()
+
+    assert legacy is not None
+    assert legacy.metadata.feature_schema_version == 1
+    with pytest.raises(ValueError, match="schema version 1 does not match current"):
+        InferenceService(model_base_path).score(RuleContext())
+
+
+def test_inference_rejects_incompatible_feature_schema_version(
+    tmp_path: Path,
+) -> None:
+    model_base_path = tmp_path / "future-model.joblib"
+    ModelRegistry(model_base_path).register(
+        {"not": "an IsolationForest"},
+        model_type="sklearn.ensemble.IsolationForest",
+        normal_rows=20,
+        suspicious_rows=5,
+        random_state=42,
+        contamination=0.05,
+        calibration_scale=0.05,
+        feature_schema_version=FEATURE_SCHEMA_VERSION + 1,
+    )
+
+    with pytest.raises(ValueError, match="does not match current version"):
         InferenceService(model_base_path).score(RuleContext())

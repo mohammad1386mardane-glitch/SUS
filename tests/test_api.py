@@ -153,6 +153,232 @@ def test_evaluate_returns_scored_response(
     assert response_data["reasons"] == []
 
 
+@pytest.mark.parametrize(
+    ("user_agent", "device_id", "expected_score", "expected_reasons"),
+    [
+        (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+            "d1",
+            0,
+            [],
+        ),
+        (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) "
+            "Gecko/20100101 Firefox/121.0",
+            "d1",
+            0,
+            [],
+        ),
+        (
+            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:121.0) "
+            "Gecko/20100101 Firefox/121.0",
+            "d1",
+            15,
+            ["user_agent_profile_change"],
+        ),
+        ("not-a-recognized-user-agent", "d1", 0, []),
+        (
+            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:121.0) "
+            "Gecko/20100101 Firefox/121.0",
+            "new-device",
+            0,
+            [],
+        ),
+    ],
+)
+def test_evaluate_scores_only_multi_dimension_changes_for_known_device(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+    user_agent: str,
+    device_id: str,
+    expected_score: int,
+    expected_reasons: list[str],
+) -> None:
+    db_session.add(
+        LoginEvent(
+            user_id="u1",
+            ip="203.0.113.5",
+            device_id="d1",
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            timestamp=datetime(2026, 11, 25, 11, 59, tzinfo=UTC),
+            success=True,
+            risk_score=0,
+            decision="allow",
+            reasons=[],
+        )
+    )
+    db_session.add(UserProfile(user_id="u1", usual_devices=["d1"]))
+    db_session.commit()
+    current_event = {
+        **login_event,
+        "user_agent": user_agent,
+        "device_id": device_id,
+    }
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=current_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == expected_score
+    assert response.json()["reasons"] == expected_reasons
+
+
+@pytest.mark.parametrize(
+    ("success", "decision", "risk_score", "reasons"),
+    [
+        (False, "challenge", 60, ["brute_force_or_credential_stuffing"]),
+        (True, "challenge", 40, ["high_risk_ip"]),
+        (True, "deny", 80, ["impossible_travel", "high_risk_ip"]),
+        (True, "allow", 15, ["user_agent_profile_change"]),
+    ],
+)
+def test_untrusted_events_do_not_reset_trusted_user_agent_baseline(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+    success: bool,
+    decision: str,
+    risk_score: int,
+    reasons: list[str],
+) -> None:
+    trusted_user_agent = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+    changed_user_agent = (
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
+    )
+    db_session.add(
+        LoginEvent(
+            user_id="u1",
+            ip="203.0.113.5",
+            device_id="d1",
+            user_agent=trusted_user_agent,
+            timestamp=datetime(2026, 11, 25, 11, 58, tzinfo=UTC),
+            success=True,
+            risk_score=0,
+            decision="allow",
+            reasons=[],
+        )
+    )
+    db_session.add(
+        LoginEvent(
+            user_id="u1",
+            ip="203.0.113.5",
+            device_id="d1",
+            user_agent=changed_user_agent,
+            timestamp=datetime(2026, 11, 25, 11, 59, tzinfo=UTC),
+            success=success,
+            risk_score=risk_score,
+            decision=decision,
+            reasons=reasons,
+        )
+    )
+    db_session.add(UserProfile(user_id="u1", usual_devices=["d1"]))
+    db_session.commit()
+    current_event = {**login_event, "user_agent": changed_user_agent}
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=current_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 15
+    assert response.json()["reasons"] == ["user_agent_profile_change"]
+
+
+def test_evaluate_rejects_missing_or_blank_user_agent(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+) -> None:
+    missing_user_agent = dict(login_event)
+    missing_user_agent.pop("user_agent")
+    blank_user_agent = {**login_event, "user_agent": "  \t"}
+
+    for event in (missing_user_agent, blank_user_agent):
+        response = client.post(
+            "/v1/login-events/evaluate",
+            json=event,
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 422
+
+
+def test_user_agent_change_does_not_double_count_new_device_country_signal(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db_session.add(
+        LoginEvent(
+            user_id="u1",
+            ip="203.0.113.5",
+            device_id="d1",
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            timestamp=datetime(2026, 11, 25, 11, 59, tzinfo=UTC),
+            success=True,
+            risk_score=0,
+            decision="allow",
+            reasons=[],
+        )
+    )
+    db_session.add(
+        UserProfile(
+            user_id="u1",
+            usual_devices=[],
+            usual_countries=["CA"],
+        )
+    )
+    db_session.commit()
+
+    def fake_lookup_ip(ip: object, *, db_path: Path | None = None) -> GeoIPResult:
+        return GeoIPResult("US", "Example", 0.0, 0.0)
+
+    monkeypatch.setattr("app.evaluation.lookup_ip", fake_lookup_ip)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        geoip_enabled=True,
+    )
+    event = {
+        **login_event,
+        "user_agent": (
+            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:121.0) "
+            "Gecko/20100101 Firefox/121.0"
+        ),
+    }
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 30
+    assert response.json()["reasons"] == ["new_device_and_country"]
+
+
 def test_feedback_persists_once_for_an_evaluated_event(
     client: TestClient,
     api_key: str,
@@ -551,7 +777,7 @@ def test_evaluate_scores_and_stores_consecutive_failed_attempts(
     assert stored_events[0].risk_score == 60
 
 
-def test_evaluate_counts_distinct_users_within_five_minute_window(
+def test_evaluate_does_not_flag_successful_distinct_users_on_shared_ip(
     client: TestClient,
     api_key: str,
     login_event: dict[str, object],
@@ -587,8 +813,170 @@ def test_evaluate_counts_distinct_users_within_five_minute_window(
     )
 
     assert response.status_code == 200
-    assert response.json()["risk_score"] == 60
-    assert response.json()["reasons"] == ["brute_force_or_credential_stuffing"]
+    assert response.json()["risk_score"] == 0
+    assert response.json()["reasons"] == []
+
+
+@pytest.mark.parametrize(
+    (
+        "scenario",
+        "history",
+        "current_success",
+        "window_seconds",
+        "expected_score",
+        "expected_reasons",
+    ),
+    [
+        (
+            "different failed users and devices",
+            (
+                (4, "user-2", "device-2", False, "203.0.113.5"),
+                (3, "user-3", "device-3", False, "203.0.113.5"),
+                (2, "user-4", "device-4", False, "203.0.113.5"),
+                (1, "user-5", "device-5", False, "203.0.113.5"),
+            ),
+            False,
+            300,
+            60,
+            ["credential_stuffing_multiple_users_and_devices"],
+        ),
+        (
+            "different users sharing one device",
+            tuple(
+                (minute, f"user-{minute + 1}", "shared-device", False, "203.0.113.5")
+                for minute in range(1, 5)
+            ),
+            False,
+            300,
+            0,
+            [],
+        ),
+        (
+            "one user using different devices",
+            tuple(
+                (minute, "user-1", f"device-{minute + 1}", False, "203.0.113.5")
+                for minute in range(1, 4)
+            ),
+            False,
+            300,
+            0,
+            [],
+        ),
+        (
+            "different IP addresses",
+            tuple(
+                (
+                    minute,
+                    f"user-{minute + 1}",
+                    f"device-{minute + 1}",
+                    False,
+                    f"198.51.100.{minute}",
+                )
+                for minute in range(1, 5)
+            ),
+            False,
+            300,
+            0,
+            [],
+        ),
+        (
+            "legitimate successful logins sharing one IP",
+            tuple(
+                (
+                    minute,
+                    f"user-{minute + 1}",
+                    f"device-{minute + 1}",
+                    True,
+                    "203.0.113.5",
+                )
+                for minute in range(1, 6)
+            ),
+            True,
+            300,
+            0,
+            [],
+        ),
+        (
+            "successful attempts do not satisfy failed identity threshold",
+            (
+                (4, "user-2", "device-2", False, "203.0.113.5"),
+                (3, "user-3", "device-3", False, "203.0.113.5"),
+                (2, "user-4", "device-4", False, "203.0.113.5"),
+                (1, "user-5", "device-5", True, "203.0.113.5"),
+            ),
+            False,
+            300,
+            0,
+            [],
+        ),
+        (
+            "failed attempts outside configured window",
+            tuple(
+                (
+                    minute,
+                    f"user-{minute + 1}",
+                    f"device-{minute + 1}",
+                    False,
+                    "203.0.113.5",
+                )
+                for minute in range(1, 5)
+            ),
+            False,
+            120,
+            0,
+            [],
+        ),
+    ],
+    ids=lambda value: value if isinstance(value, str) else None,
+)
+def test_evaluate_scores_shared_ip_failed_user_and_device_patterns(
+    client: TestClient,
+    api_key: str,
+    login_event: dict[str, object],
+    db_session: Session,
+    scenario: str,
+    history: tuple[tuple[int, str, str, bool, str], ...],
+    current_success: bool,
+    window_seconds: int,
+    expected_score: int,
+    expected_reasons: list[str],
+) -> None:
+    del scenario
+    timestamp = datetime(2026, 11, 25, 12, 0, tzinfo=UTC)
+    repository = LoginEventRepository(db_session)
+    for minutes_ago, user_id, device_id, success, ip in history:
+        repository.add(
+            LoginEvent(
+                user_id=user_id,
+                ip=ip,
+                device_id=device_id,
+                user_agent="browser",
+                timestamp=timestamp - timedelta(minutes=minutes_ago),
+                success=success,
+                reasons=[],
+            )
+        )
+    db_session.commit()
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        api_key=SecretStr(api_key),
+        credential_stuffing_window_seconds=window_seconds,
+    )
+    current_event = {
+        **login_event,
+        "user_id": "user-1",
+        "device_id": "device-1",
+        "success": current_success,
+    }
+
+    response = client.post(
+        "/v1/login-events/evaluate",
+        json=current_event,
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == expected_score
+    assert response.json()["reasons"] == expected_reasons
 
 
 def test_successful_login_resets_consecutive_failure_rule(

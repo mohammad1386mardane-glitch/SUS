@@ -11,6 +11,7 @@ from app.rules import (
     RuleContext,
     RuleRegistry,
     UnusualHourRule,
+    UserAgentProfileChangeRule,
 )
 
 
@@ -95,18 +96,25 @@ def test_impossible_travel_rule_uses_strict_speed_threshold(
 
 
 @pytest.mark.parametrize(
-    ("consecutive_failures", "distinct_users_per_ip", "expected"),
+    (
+        "consecutive_failures",
+        "distinct_failed_users_per_ip",
+        "distinct_failed_devices_per_ip",
+        "expected",
+    ),
     [
-        (0, 0, False),
-        (4, 4, False),
-        (5, 0, True),
-        (0, 5, True),
-        (5, 5, True),
+        (0, 0, 0, False),
+        (4, 4, 4, False),
+        (5, 0, 0, True),
+        (0, 5, 4, False),
+        (0, 4, 5, False),
+        (0, 5, 5, True),
     ],
 )
-def test_brute_force_rule_triggers_on_either_threshold(
+def test_brute_force_rule_requires_both_shared_ip_diversity_signals(
     consecutive_failures: int,
-    distinct_users_per_ip: int,
+    distinct_failed_users_per_ip: int,
+    distinct_failed_devices_per_ip: int,
     expected: bool,
 ) -> None:
     rule = BruteForceRule()
@@ -115,7 +123,48 @@ def test_brute_force_rule_triggers_on_either_threshold(
         rule.condition(
             RuleContext(
                 consecutive_failures=consecutive_failures,
-                distinct_users_per_ip=distinct_users_per_ip,
+                distinct_failed_users_per_ip=distinct_failed_users_per_ip,
+                distinct_failed_devices_per_ip=distinct_failed_devices_per_ip,
+            )
+        )
+        is expected
+    )
+
+
+def test_brute_force_rule_reports_both_signals() -> None:
+    rule = BruteForceRule()
+    context = RuleContext(
+        consecutive_failures=5,
+        distinct_failed_users_per_ip=5,
+        distinct_failed_devices_per_ip=5,
+    )
+
+    assert rule.reasons(context) == (
+        "brute_force_or_credential_stuffing",
+        "credential_stuffing_multiple_users_and_devices",
+    )
+
+
+@pytest.mark.parametrize(
+    ("is_new_device", "suspicious_change", "expected"),
+    [
+        (False, False, False),
+        (False, True, True),
+        (True, True, False),
+    ],
+)
+def test_user_agent_change_rule_avoids_new_device_double_counting(
+    is_new_device: bool,
+    suspicious_change: bool,
+    expected: bool,
+) -> None:
+    rule = UserAgentProfileChangeRule()
+
+    assert (
+        rule.condition(
+            RuleContext(
+                is_new_device=is_new_device,
+                suspicious_user_agent_profile_change=suspicious_change,
             )
         )
         is expected

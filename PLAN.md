@@ -172,7 +172,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | # | Commit | Description | Status |
 |---|---|---|---|
 | 3.1 | `feat(geo): integrate GeoLite2` | IP → country/city/lat/lon | ✅ |
-| 3.2 | `feat(features): add user-agent parsing` | Browser, OS, device type | ✅ |
+| 3.2 | `feat(features): add user-agent parsing` | Browser, OS, device type, and explainable same-device profile-change risk | ✅ |
 | 3.3 | `feat(features): add impossible-travel feature` | Required speed between two logins (km/h) | ✅ |
 | 3.4 | `feat(features): add new device / new country flags` | Compare with the user profile | ✅ |
 | 3.5 | `feat(features): add time-of-day deviation` | Distance from the user's usual hours | ✅ |
@@ -188,7 +188,7 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 |---|---|---|---|
 | 4.1 | `feat(rules): add rule base class and registry` | Each rule: name, weight, condition | ✅ |
 | 4.2 | `feat(rules): impossible travel rule` | Speed above 900 km/h | ✅ |
-| 4.3 | `feat(rules): brute force / credential stuffing rule` | Consecutive failures, or one IP across many users | ✅ |
+| 4.3 | `feat(rules): brute force / credential stuffing rule` | Consecutive failures, or failed distinct users and devices on one IP | ✅ |
 | 4.4 | `feat(rules): new device + new country rule` | Combination of two signals | ✅ |
 | 4.5 | `feat(rules): high-risk IP rule` | Tor / VPN / proxy | ✅ |
 | 4.6 | `feat(rules): unusual hour rule` | Login at an atypical hour | ✅ |
@@ -242,6 +242,14 @@ Client/Auth-Service ──► POST /v1/login-events/evaluate
 | 7.6 | `chore(security): add dependency audit and secrets scan` | `pip-audit`, `gitleaks` | ✅ |
 | 7.7 | `docs: final README verification` | **The agent runs every README install step from scratch in a clean environment and confirms it works** | ✅ |
 | 7.8 | `docs: finalize AGENTS.md and release v1.0.0` | Final status, tag `v1.0.0` | ✅ |
+
+## Post-release hardening
+
+| Work | Description | Status |
+|---|---|---|
+| Same-IP user/device diversity | Score credential-stuffing activity only when at least five distinct users and five distinct devices have failed from one IP within the configurable window; successful shared-IP logins do not count. | ✅ |
+| User-Agent profile-change risk | Score multi-dimension browser/OS/device-class changes only on a trusted known device; ignore versions, single changes, unknown agents, and new-device overlap. | ✅ |
+| Trusted User-Agent history and ML schema compatibility | Select User-Agent baselines only from successful allow events that satisfy profile-learning trust criteria; reject registered models whose explicit feature schema version differs from the inference schema. | ✅ |
 
 ---
 

@@ -1,6 +1,29 @@
 import pytest
 
-from app.user_agent import UserAgentFeatures, parse_user_agent
+from app.user_agent import (
+    UserAgentFeatures,
+    parse_user_agent,
+    suspicious_user_agent_profile_change,
+)
+
+_CHROME_WINDOWS = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+_CHROME_WINDOWS_UPDATED = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+)
+_FIREFOX_WINDOWS = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
+)
+_CHROME_LINUX = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+_FIREFOX_LINUX = (
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
+)
 
 
 @pytest.mark.parametrize(
@@ -45,3 +68,28 @@ def test_parse_user_agent_extracts_browser_os_and_device_type(
 def test_parse_user_agent_rejects_empty_input(user_agent: str) -> None:
     with pytest.raises(ValueError, match="user_agent cannot be empty"):
         parse_user_agent(user_agent)
+
+
+@pytest.mark.parametrize(
+    ("current_user_agent", "previous_user_agent", "expected"),
+    [
+        (_CHROME_WINDOWS_UPDATED, _CHROME_WINDOWS, False),
+        (_FIREFOX_WINDOWS, _CHROME_WINDOWS, False),
+        (_CHROME_LINUX, _CHROME_WINDOWS, False),
+        (_FIREFOX_LINUX, _CHROME_WINDOWS, True),
+        ("not-a-recognized-user-agent", _CHROME_WINDOWS, False),
+        ("   ", _CHROME_WINDOWS, False),
+    ],
+)
+def test_suspicious_user_agent_change_requires_multiple_known_dimensions(
+    current_user_agent: str,
+    previous_user_agent: str,
+    expected: bool,
+) -> None:
+    assert (
+        suspicious_user_agent_profile_change(
+            current_user_agent,
+            previous_user_agent,
+        )
+        is expected
+    )

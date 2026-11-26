@@ -22,12 +22,13 @@ from app.rules import (
     RuleContext,
     RuleRegistry,
     UnusualHourRule,
+    UserAgentProfileChangeRule,
 )
 from app.schemas import LoginEventRequest, LoginEventResponse
 from app.scoring import aggregate_score, blend_scores, score_to_decision
 from app.settings import Settings
+from app.user_agent import suspicious_user_agent_profile_change
 
-_CREDENTIAL_STUFFING_WINDOW = timedelta(minutes=5)
 _RULES = RuleRegistry(
     (
         ImpossibleTravelRule(),
@@ -35,6 +36,7 @@ _RULES = RuleRegistry(
         NewDeviceAndCountryRule(),
         HighRiskIPRule(),
         UnusualHourRule(),
+        UserAgentProfileChangeRule(),
     )
 )
 
@@ -82,20 +84,56 @@ def evaluate_and_store(
         current_location.country if current_location is not None else None,
         profile,
     )
+    previous_same_device = next(
+        (
+            previous
+            for previous in previous_events
+            if previous.device_id == event.device_id
+            and _is_trusted_login(
+                previous.success,
+                previous.decision,
+                previous.reasons,
+            )
+        ),
+        None,
+    )
+    suspicious_user_agent_change = (
+        suspicious_user_agent_profile_change(
+            event.user_agent,
+            previous_same_device.user_agent,
+        )
+        if previous_same_device is not None
+        else False
+    )
     time_deviation = time_of_day_deviation_hours(event_timestamp, profile)
     consecutive_failures = _consecutive_failures(event.success, previous_events)
+    window_start = event_timestamp - timedelta(
+        seconds=settings.credential_stuffing_window_seconds
+    )
     recent_users = event_repository.distinct_users_for_ip_between(
         event_ip,
-        event_timestamp - _CREDENTIAL_STUFFING_WINDOW,
+        window_start,
         event_timestamp,
     )
     recent_users.add(event.user_id)
+    failed_user_device_pairs = event_repository.failed_user_device_pairs_for_ip_between(
+        event_ip,
+        window_start,
+        event_timestamp,
+    )
+    if not event.success:
+        failed_user_device_pairs.add((event.user_id, event.device_id))
+    failed_users = {user_id for user_id, _ in failed_user_device_pairs}
+    failed_devices = {device_id for _, device_id in failed_user_device_pairs}
     high_risk_ip_list = HighRiskIPList(settings.high_risk_ip_networks)
 
     context = RuleContext(
         impossible_travel_speed_kmh=travel_speed,
         consecutive_failures=consecutive_failures,
         distinct_users_per_ip=len(recent_users),
+        distinct_failed_users_per_ip=len(failed_users),
+        distinct_failed_devices_per_ip=len(failed_devices),
+        suspicious_user_agent_profile_change=suspicious_user_agent_change,
         is_new_device=login_signals.is_new_device,
         is_new_country=login_signals.is_new_country,
         is_high_risk_ip=high_risk_ip_list.is_high_risk(event_ip),
@@ -103,7 +141,12 @@ def evaluate_and_store(
     )
     matched_rules = _RULES.evaluate(context)
     rule_score = aggregate_score(matched_rules)
-    reasons = [rule.name for rule in matched_rules]
+    reasons: list[str] = []
+    for rule in matched_rules:
+        if isinstance(rule, BruteForceRule):
+            reasons.extend(rule.reasons(context))
+        else:
+            reasons.append(rule.name)
     score = rule_score
     if settings.ml_enabled:
         ml_result = InferenceService(settings.model_path).score(context)
@@ -135,11 +178,7 @@ def evaluate_and_store(
             reasons=reasons,
         )
     )
-    if (
-        event.success
-        and decision == "allow"
-        and all(reason == "new_device_and_country" for reason in reasons)
-    ):
+    if _is_trusted_login(event.success, decision, reasons):
         profile_repository.add_trusted_login(
             user_id=event.user_id,
             device_id=event.device_id,
@@ -148,6 +187,18 @@ def evaluate_and_store(
         )
     session.commit()
     return response
+
+
+def _is_trusted_login(
+    success: bool,
+    decision: str | None,
+    reasons: list[str],
+) -> bool:
+    return (
+        success
+        and decision == "allow"
+        and all(reason == "new_device_and_country" for reason in reasons)
+    )
 
 
 def _consecutive_failures(

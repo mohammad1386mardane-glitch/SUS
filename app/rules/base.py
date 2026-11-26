@@ -11,6 +11,9 @@ class RuleContext:
     is_new_country: bool = False
     is_high_risk_ip: bool = False
     time_deviation_hours: int | None = None
+    distinct_failed_users_per_ip: int = 0
+    distinct_failed_devices_per_ip: int = 0
+    suspicious_user_agent_profile_change: bool = False
 
 
 @dataclass(frozen=True, slots=True)

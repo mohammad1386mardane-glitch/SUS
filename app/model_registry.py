@@ -7,7 +7,7 @@ from uuid import uuid4
 import joblib
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.ml_features import FEATURE_NAMES
+from app.ml_features import FEATURE_NAMES, FEATURE_SCHEMA_VERSION
 
 
 class ModelMetadata(BaseModel):
@@ -17,6 +17,7 @@ class ModelMetadata(BaseModel):
     created_at: datetime
     model_type: str = Field(min_length=1)
     feature_names: tuple[str, ...] = Field(min_length=1)
+    feature_schema_version: int = Field(default=1, ge=1)
     normal_rows: int = Field(ge=2)
     suspicious_rows: int = Field(ge=1)
     random_state: int
@@ -66,6 +67,7 @@ class ModelRegistry:
         contamination: float,
         calibration_scale: float,
         feature_names: tuple[str, ...] = FEATURE_NAMES,
+        feature_schema_version: int = FEATURE_SCHEMA_VERSION,
     ) -> RegisteredModel:
         latest = self.latest()
         versions = self._existing_versions()
@@ -79,6 +81,7 @@ class ModelRegistry:
             created_at=datetime.now(UTC),
             model_type=model_type,
             feature_names=feature_names,
+            feature_schema_version=feature_schema_version,
             normal_rows=normal_rows,
             suspicious_rows=suspicious_rows,
             random_state=random_state,

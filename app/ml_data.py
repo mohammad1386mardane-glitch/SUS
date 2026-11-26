@@ -124,7 +124,13 @@ def _suspicious_context(rng: random.Random) -> RuleContext:
     if attack_type == "brute_force":
         return replace(context, consecutive_failures=rng.randint(5, 10))
     if attack_type == "credential_stuffing":
-        return replace(context, distinct_users_per_ip=rng.randint(5, 10))
+        distinct_identities = rng.randint(5, 10)
+        return replace(
+            context,
+            distinct_users_per_ip=distinct_identities,
+            distinct_failed_users_per_ip=distinct_identities,
+            distinct_failed_devices_per_ip=distinct_identities,
+        )
     if attack_type == "new_device_and_country":
         return replace(context, is_new_device=True, is_new_country=True)
     if attack_type == "high_risk_ip":
@@ -136,6 +142,8 @@ def _suspicious_context(rng: random.Random) -> RuleContext:
         impossible_travel_speed_kmh=rng.uniform(600, 900),
         consecutive_failures=rng.randint(2, 4),
         distinct_users_per_ip=rng.randint(3, 4),
+        distinct_failed_users_per_ip=rng.randint(3, 4),
+        distinct_failed_devices_per_ip=rng.randint(3, 4),
         is_new_device=True,
         is_new_country=False,
         time_deviation_hours=rng.randint(3, 5),

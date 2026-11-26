@@ -2,6 +2,8 @@ from math import isfinite
 
 from app.rules.base import RuleContext
 
+FEATURE_SCHEMA_VERSION = 2
+
 FEATURE_NAMES = (
     "travel_speed_ratio",
     "consecutive_failures_ratio",
@@ -17,7 +19,13 @@ def features_from_context(context: RuleContext) -> dict[str, float]:
     return {
         "travel_speed_ratio": _ratio(context.impossible_travel_speed_kmh, 1800),
         "consecutive_failures_ratio": _ratio(context.consecutive_failures, 10),
-        "distinct_users_per_ip_ratio": _ratio(context.distinct_users_per_ip, 10),
+        "distinct_users_per_ip_ratio": _ratio(
+            min(
+                context.distinct_failed_users_per_ip,
+                context.distinct_failed_devices_per_ip,
+            ),
+            10,
+        ),
         "is_new_device": float(context.is_new_device),
         "is_new_country": float(context.is_new_country),
         "is_high_risk_ip": float(context.is_high_risk_ip),

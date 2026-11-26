@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = False
     rate_limit_max_requests: int = Field(default=100, ge=1)
     rate_limit_window_seconds: int = Field(default=60, ge=1)
+    credential_stuffing_window_seconds: int = Field(default=300, ge=1)
     shadow_mode: bool = True
     allow_max_score: int = 39
     challenge_max_score: int = 78
